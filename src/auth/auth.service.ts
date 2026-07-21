@@ -1,0 +1,114 @@
+import { ForbiddenException, Injectable, UnauthorizedException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { JwtService } from '@nestjs/jwt';
+import * as bcrypt from 'bcrypt';
+import { createHash } from 'crypto';
+import { PrismaService } from '../prisma/prisma.service';
+import { UsersService } from '../users/users.service';
+import { LoginDto } from './dto';
+
+function parseDurationMs(value: string): number {
+  const match = /^(\d+)([smhd])$/.exec(value.trim());
+  if (!match) return 15 * 60 * 1000;
+  const amount = Number(match[1]);
+  const unitMs = { s: 1000, m: 60_000, h: 3_600_000, d: 86_400_000 }[match[2]]!;
+  return amount * unitMs;
+}
+
+function hashToken(token: string): string {
+  return createHash('sha256').update(token).digest('hex');
+}
+
+@Injectable()
+export class AuthService {
+  private readonly accessExpiresIn: string;
+  private readonly refreshExpiresIn: string;
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly users: UsersService,
+    private readonly jwt: JwtService,
+    private readonly config: ConfigService,
+  ) {
+    this.accessExpiresIn = this.config.get<string>('JWT_ACCESS_EXPIRES_IN') ?? '15m';
+    this.refreshExpiresIn = this.config.get<string>('JWT_REFRESH_EXPIRES_IN') ?? '7d';
+  }
+
+  async login(dto: LoginDto) {
+    const user = await this.users.findByUsername(dto.username);
+    if (!user) throw new UnauthorizedException('Invalid credentials');
+
+    const passwordOk = await bcrypt.compare(dto.password, user.passwordHash);
+    if (!passwordOk) throw new UnauthorizedException('Invalid credentials');
+
+    if (user.role !== dto.role) {
+      throw new ForbiddenException(`This account is not authorized to log in as ${dto.role}`);
+    }
+
+    const tokens = await this.issueTokens(user.id, user.username, user.role);
+    return {
+      user: {
+        id: user.id,
+        username: user.username,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        roles: [user.role],
+      },
+      tokens,
+    };
+  }
+
+  async refresh(refreshToken: string) {
+    let payload: { sub: string; username: string; role: string };
+    try {
+      payload = this.jwt.verify(refreshToken, {
+        secret: this.config.get<string>('JWT_REFRESH_SECRET'),
+      });
+    } catch {
+      throw new UnauthorizedException('Invalid or expired refresh token');
+    }
+
+    const tokenHash = hashToken(refreshToken);
+    const stored = await this.prisma.refreshToken.findUnique({ where: { tokenHash } });
+    if (!stored || stored.revokedAt || stored.expiresAt < new Date()) {
+      throw new UnauthorizedException('Invalid or expired refresh token');
+    }
+
+    await this.prisma.refreshToken.update({
+      where: { id: stored.id },
+      data: { revokedAt: new Date() },
+    });
+
+    return this.issueTokens(payload.sub, payload.username, payload.role);
+  }
+
+  async logout(refreshToken: string): Promise<void> {
+    const tokenHash = hashToken(refreshToken);
+    await this.prisma.refreshToken.updateMany({
+      where: { tokenHash, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+  }
+
+  private async issueTokens(userId: string, username: string, role: string) {
+    const payload = { sub: userId, username, role };
+    const accessToken = this.jwt.sign(payload, {
+      secret: this.config.get<string>('JWT_ACCESS_SECRET'),
+      expiresIn: this.accessExpiresIn as never,
+    });
+    const refreshToken = this.jwt.sign(payload, {
+      secret: this.config.get<string>('JWT_REFRESH_SECRET'),
+      expiresIn: this.refreshExpiresIn as never,
+    });
+
+    await this.prisma.refreshToken.create({
+      data: {
+        userId,
+        tokenHash: hashToken(refreshToken),
+        expiresAt: new Date(Date.now() + parseDurationMs(this.refreshExpiresIn)),
+      },
+    });
+
+    return { accessToken, refreshToken, expiresIn: this.accessExpiresIn };
+  }
+}

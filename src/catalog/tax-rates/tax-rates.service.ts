@@ -1,0 +1,15 @@
+import { Injectable } from '@nestjs/common';
+import { PrismaService } from '../../prisma/prisma.service';
+import { GenericCrudService } from '../generic/generic-crud.service';
+import type { TaxRate } from '@prisma/client';
+
+@Injectable()
+export class TaxRatesService extends GenericCrudService<TaxRate> {
+  constructor(private readonly prisma: PrismaService) {
+    super();
+  }
+
+  protected get delegate() {
+    return this.prisma.taxRate;
+  }
+}
