@@ -1,6 +1,7 @@
 import { Type } from 'class-transformer';
 import {
   IsArray,
+  IsBoolean,
   IsIn,
   IsNumber,
   IsObject,
@@ -11,6 +12,15 @@ import {
 
 const WIRING_TYPES = ['POINT_WIRING', 'CIRCUIT_WIRING'] as const;
 const SEGMENTS = ['RESIDENTIAL', 'COMMERCIAL', 'INDUSTRIAL'] as const;
+
+export class ActivityRequirementOptionDto {
+  @IsString()
+  variantId!: string;
+
+  @IsOptional()
+  @IsBoolean()
+  isDefault?: boolean;
+}
 
 export class ActivityRequirementDto {
   @IsOptional()
@@ -32,28 +42,14 @@ export class ActivityRequirementDto {
   @IsOptional()
   @IsNumber()
   sortOrder?: number;
-}
 
-export class SheetDataDto {
-  @IsOptional()
-  @IsNumber()
-  rowCount?: number;
-
-  @IsOptional()
-  @IsNumber()
-  colCount?: number;
-
+  /** Alternate makes (specific catalog variants) this requirement can be fulfilled with.
+   *  Omitted or empty means "simple" — the existing single-description behavior, unchanged. */
   @IsOptional()
   @IsArray()
-  cells?: unknown[];
-
-  @IsOptional()
-  @IsArray()
-  colWidths?: unknown[];
-
-  @IsOptional()
-  @IsArray()
-  rowHeights?: unknown[];
+  @ValidateNested({ each: true })
+  @Type(() => ActivityRequirementOptionDto)
+  options?: ActivityRequirementOptionDto[];
 }
 
 export class CreateActivityDto {
@@ -62,6 +58,10 @@ export class CreateActivityDto {
 
   @IsIn(WIRING_TYPES)
   wiringType!: (typeof WIRING_TYPES)[number];
+
+  @IsOptional()
+  @IsString()
+  category?: string;
 
   @IsOptional()
   @IsIn(SEGMENTS)
@@ -80,11 +80,13 @@ export class CreateActivityDto {
   @Type(() => ActivityRequirementDto)
   requirements!: ActivityRequirementDto[];
 
+  /** Opaque spreadsheet workbook blob — shape owned by the frontend spreadsheet
+   *  store (current multi-sheet form, or the older single-sheet form for records
+   *  saved before sheet tabs existed), so it's stored as-is rather than validated
+   *  field-by-field. */
   @IsOptional()
   @IsObject()
-  @ValidateNested()
-  @Type(() => SheetDataDto)
-  sheetData?: SheetDataDto;
+  sheetData?: Record<string, unknown>;
 
   @IsOptional()
   @IsNumber()
@@ -103,6 +105,10 @@ export class UpdateActivityDto {
   @IsOptional()
   @IsIn(WIRING_TYPES)
   wiringType?: (typeof WIRING_TYPES)[number];
+
+  @IsOptional()
+  @IsString()
+  category?: string;
 
   @IsOptional()
   @IsIn(SEGMENTS)
@@ -124,9 +130,7 @@ export class UpdateActivityDto {
 
   @IsOptional()
   @IsObject()
-  @ValidateNested()
-  @Type(() => SheetDataDto)
-  sheetData?: SheetDataDto | null;
+  sheetData?: Record<string, unknown> | null;
 
   @IsOptional()
   @IsNumber()

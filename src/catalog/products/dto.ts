@@ -103,8 +103,13 @@ export class SaveProductDto {
   @IsString()
   description?: string;
 
+  @IsOptional()
   @IsString()
-  manufacturerId!: string;
+  manufacturerId?: string;
+
+  @IsOptional()
+  @IsString()
+  manufacturerName?: string;
 
   @IsOptional()
   @IsString()
@@ -114,12 +119,25 @@ export class SaveProductDto {
   @IsString()
   seriesId?: string;
 
+  @IsOptional()
   @IsString()
-  categoryId!: string;
+  seriesName?: string;
+
+  @IsOptional()
+  @IsString()
+  categoryId?: string;
+
+  @IsOptional()
+  @IsString()
+  categoryName?: string;
 
   @IsOptional()
   @IsString()
   subCategoryId?: string;
+
+  @IsOptional()
+  @IsString()
+  subCategoryName?: string;
 
   @IsOptional()
   @IsObject()
@@ -128,6 +146,10 @@ export class SaveProductDto {
   @IsOptional()
   @IsString()
   unitId?: string;
+
+  @IsOptional()
+  @IsString()
+  unitName?: string;
 
   @IsOptional()
   @IsString()

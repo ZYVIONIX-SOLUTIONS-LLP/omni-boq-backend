@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { QuotationsService } from './quotations.service';
 import {
@@ -9,61 +9,63 @@ import {
 } from './dto';
 
 @Controller('quotations')
+@UseGuards(JwtAuthGuard)
 export class QuotationsController {
   constructor(private readonly service: QuotationsService) {}
 
   @Get()
-  list(@Query('page') page?: string, @Query('limit') limit?: string) {
-    return this.service.list({
-      page: page ? Number(page) : undefined,
-      limit: limit ? Number(limit) : undefined,
-    });
+  list(@Req() req: any, @Query('page') page?: string, @Query('limit') limit?: string) {
+    return this.service.list(
+      {
+        page: page ? Number(page) : undefined,
+        limit: limit ? Number(limit) : undefined,
+      },
+      req.user,
+    );
   }
 
   @Post()
-  @UseGuards(JwtAuthGuard)
-  create(@Body() dto: CreateQuotationWithClientDto) {
-    return this.service.createWithClient(dto);
+  create(@Req() req: any, @Body() dto: CreateQuotationWithClientDto) {
+    return this.service.createWithClient(dto, req.user);
   }
 
   @Get(':id')
-  get(@Param('id') id: string) {
-    return this.service.get(id);
+  get(@Req() req: any, @Param('id') id: string) {
+    return this.service.get(id, req.user);
   }
 
   @Patch(':id')
-  @UseGuards(JwtAuthGuard)
-  update(@Param('id') id: string, @Body() dto: UpdateQuotationDto) {
-    return this.service.update(id, dto);
+  update(@Req() req: any, @Param('id') id: string, @Body() dto: UpdateQuotationDto) {
+    return this.service.update(id, dto, req.user);
   }
 
   @Delete(':id')
-  @UseGuards(JwtAuthGuard)
-  remove(@Param('id') id: string) {
-    return this.service.remove(id);
+  remove(@Req() req: any, @Param('id') id: string) {
+    return this.service.remove(id, req.user);
   }
 
   @Patch(':id/status')
-  @UseGuards(JwtAuthGuard)
-  updateStatus(@Param('id') id: string, @Body() dto: UpdateQuotationStatusDto) {
-    return this.service.updateStatus(id, dto.status);
+  updateStatus(@Req() req: any, @Param('id') id: string, @Body() dto: UpdateQuotationStatusDto) {
+    return this.service.updateStatus(id, dto.status, req.user);
   }
 
   @Post(':id/items')
-  @UseGuards(JwtAuthGuard)
-  addItem(@Param('id') id: string, @Body() dto: QuotationItemDto) {
-    return this.service.addItem(id, dto);
+  addItem(@Req() req: any, @Param('id') id: string, @Body() dto: QuotationItemDto) {
+    return this.service.addItem(id, dto, req.user);
   }
 
   @Patch(':id/items/:itemId')
-  @UseGuards(JwtAuthGuard)
-  updateItem(@Param('id') id: string, @Param('itemId') itemId: string, @Body() dto: Partial<QuotationItemDto>) {
-    return this.service.updateItem(id, itemId, dto);
+  updateItem(
+    @Req() req: any,
+    @Param('id') id: string,
+    @Param('itemId') itemId: string,
+    @Body() dto: Partial<QuotationItemDto>,
+  ) {
+    return this.service.updateItem(id, itemId, dto, req.user);
   }
 
   @Delete(':id/items/:itemId')
-  @UseGuards(JwtAuthGuard)
-  removeItem(@Param('id') id: string, @Param('itemId') itemId: string) {
-    return this.service.removeItem(id, itemId);
+  removeItem(@Req() req: any, @Param('id') id: string, @Param('itemId') itemId: string) {
+    return this.service.removeItem(id, itemId, req.user);
   }
 }

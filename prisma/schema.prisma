@@ -60,6 +60,11 @@ enum UserRole {
   SUPERADMIN
 }
 
+enum UserStatus {
+  PENDING
+  APPROVED
+}
+
 // ── Catalog hierarchy ────────────────────────────────────────────────────
 
 model Manufacturer {
@@ -224,34 +229,41 @@ model HsnCode {
 // ── Products & variants ──────────────────────────────────────────────────
 
 model ProductModel {
-  id             String        @id @default(cuid())
-  name           String
-  nameNormalized String        @map("name_normalized")
-  description    String?
-  manufacturerId String        @map("manufacturer_id")
-  divisionId     String?       @map("division_id")
-  seriesId       String?       @map("series_id")
-  categoryId     String        @map("category_id")
-  subCategoryId  String?       @map("sub_category_id")
-  attributes     Json          @default("{}")
-  unitId         String?       @map("unit_id")
-  hsnCode        String?       @map("hsn_code")
-  gstRate        Decimal?      @map("gst_rate") @db.Decimal(5, 2)
-  images         Json          @default("{\"gallery\":[]}")
-  status         ProductStatus @default(ACTIVE)
-  createdAt      DateTime      @default(now()) @map("created_at")
-  updatedAt      DateTime      @updatedAt @map("updated_at")
+  id               String        @id @default(cuid())
+  tenantId         String?       @map("tenant_id")
+  name             String
+  nameNormalized   String        @map("name_normalized")
+  description      String?
+  manufacturerId   String?       @map("manufacturer_id")
+  manufacturerName String?       @map("manufacturer_name")
+  divisionId       String?       @map("division_id")
+  seriesId         String?       @map("series_id")
+  seriesName       String?       @map("series_name")
+  categoryId       String?       @map("category_id")
+  categoryName     String?       @map("category_name")
+  subCategoryId    String?       @map("sub_category_id")
+  subCategoryName  String?       @map("sub_category_name")
+  attributes       Json          @default("{}")
+  unitId           String?       @map("unit_id")
+  unitName         String?       @map("unit_name")
+  hsnCode          String?       @map("hsn_code")
+  gstRate          Decimal?      @map("gst_rate") @db.Decimal(5, 2)
+  images           Json          @default("{\"gallery\":[]}")
+  status           ProductStatus @default(ACTIVE)
+  createdAt        DateTime      @default(now()) @map("created_at")
+  updatedAt        DateTime      @updatedAt @map("updated_at")
 
-  manufacturer Manufacturer    @relation(fields: [manufacturerId], references: [id], onDelete: Restrict)
-  division     Division?       @relation(fields: [divisionId], references: [id], onDelete: SetNull)
-  series       ProductSeries?  @relation(fields: [seriesId], references: [id], onDelete: SetNull)
-  category     CatalogCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
-  subCategory  SubCategory?    @relation(fields: [subCategoryId], references: [id], onDelete: SetNull)
-  unit         UnitDef?        @relation(fields: [unitId], references: [id], onDelete: SetNull)
+  manufacturer Manufacturer?    @relation(fields: [manufacturerId], references: [id], onDelete: Restrict)
+  division     Division?        @relation(fields: [divisionId], references: [id], onDelete: SetNull)
+  series       ProductSeries?   @relation(fields: [seriesId], references: [id], onDelete: SetNull)
+  category     CatalogCategory? @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  subCategory  SubCategory?     @relation(fields: [subCategoryId], references: [id], onDelete: SetNull)
+  unit         UnitDef?         @relation(fields: [unitId], references: [id], onDelete: SetNull)
   variants     Variant[]
 
   @@index([manufacturerId, seriesId, nameNormalized])
   @@index([categoryId])
+  @@index([tenantId])
   @@index([createdAt])
   @@map("products")
 }
@@ -281,6 +293,7 @@ model Variant {
   updatedAt        DateTime      @updatedAt @map("updated_at")
 
   product ProductModel @relation(fields: [productId], references: [id], onDelete: Cascade)
+  requirementOptions ActivityRequirementOption[]
 
   @@index([productId])
   @@index([modelCode])
@@ -294,9 +307,11 @@ model Variant {
 
 model Activity {
   id           String          @id @default(cuid())
+  tenantId     String?         @map("tenant_id")
   code         String          @unique
   name         String
   wiringType   WiringType      @map("wiring_type")
+  category     String?
   segment      ProjectSegment?
   unit         UnitOfMeasure
   description  String?
@@ -311,6 +326,7 @@ model Activity {
 
   @@index([wiringType])
   @@index([segment])
+  @@index([tenantId])
   @@map("activities")
 }
 
@@ -325,16 +341,38 @@ model ActivityRequirement {
 
   activity Activity        @relation(fields: [activityId], references: [id], onDelete: Cascade)
   category CatalogCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  options  ActivityRequirementOption[]
 
   @@index([activityId])
   @@index([categoryId])
   @@map("activity_requirements")
 }
 
+// One row per alternate "make" (a specific catalog variant) a requirement can be fulfilled
+// with. Exactly one option per requirement is flagged isDefault — that's the make whose name
+// and price populate the requirement's row in the Activity's own spreadsheet; Quotations pick
+// among these same options via their own per-row override instead of the full catalog search.
+model ActivityRequirementOption {
+  id            String   @id @default(cuid())
+  requirementId String   @map("requirement_id")
+  variantId     String   @map("variant_id")
+  isDefault     Boolean  @default(false) @map("is_default")
+  sortOrder     Int      @default(0) @map("sort_order")
+
+  requirement ActivityRequirement @relation(fields: [requirementId], references: [id], onDelete: Cascade)
+  variant     Variant             @relation(fields: [variantId], references: [id], onDelete: Cascade)
+
+  @@unique([requirementId, variantId])
+  @@index([requirementId])
+  @@index([variantId])
+  @@map("activity_requirement_options")
+}
+
 // ── Quotations ────────────────────────────────────────────────────────────
 
 model Quotation {
   id                     String          @id @default(cuid())
+  tenantId               String?         @map("tenant_id")
   code                   String          @unique
   status                 QuotationStatus @default(DRAFT)
   subTotal               Decimal         @default(0) @map("sub_total") @db.Decimal(14, 2)
@@ -353,6 +391,7 @@ model Quotation {
   project  QuotationProject?
   items    QuotationItem[]
 
+  @@index([tenantId])
   @@map("quotations")
 }
 
@@ -403,13 +442,16 @@ model QuotationItem {
 // ── Auth & users ──────────────────────────────────────────────────────────
 
 model User {
-  id           String   @id @default(cuid())
-  username     String   @unique
-  passwordHash String   @map("password_hash")
-  firstName    String   @map("first_name")
-  lastName     String   @map("last_name")
+  id           String     @id @default(cuid())
+  username     String     @unique
+  passwordHash String     @map("password_hash")
+  firstName    String     @map("first_name")
+  lastName     String     @map("last_name")
   role         UserRole
-  createdAt    DateTime @default(now()) @map("created_at")
+  status       UserStatus @default(APPROVED)
+  companyName  String?    @map("company_name")
+  adminId      String?    @map("admin_id")
+  createdAt    DateTime   @default(now()) @map("created_at")
 
   refreshTokens RefreshToken[]
 

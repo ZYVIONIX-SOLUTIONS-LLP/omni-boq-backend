@@ -1,11 +1,11 @@
-import { ForbiddenException, Injectable, UnauthorizedException } from '@nestjs/common';
+import { ConflictException, ForbiddenException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { createHash } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { UsersService } from '../users/users.service';
-import { LoginDto } from './dto';
+import { LoginDto, RegisterDto } from './dto';
 
 function parseDurationMs(value: string): number {
   const match = /^(\d+)([smhd])$/.exec(value.trim());
@@ -45,7 +45,11 @@ export class AuthService {
       throw new ForbiddenException(`This account is not authorized to log in as ${dto.role}`);
     }
 
-    const tokens = await this.issueTokens(user.id, user.username, user.role);
+    if (user.status === 'PENDING') {
+      throw new ForbiddenException('Your account is pending Super Admin approval.');
+    }
+
+    const tokens = await this.issueTokens(user.id, user.username, user.role, user.adminId);
     return {
       user: {
         id: user.id,
@@ -58,8 +62,29 @@ export class AuthService {
     };
   }
 
+  async register(dto: RegisterDto) {
+    const existing = await this.users.findByUsername(dto.username);
+    if (existing) throw new ConflictException('Username already exists');
+
+    const passwordHash = await bcrypt.hash(dto.password, 10);
+    await this.prisma.user.create({
+      data: {
+        username: dto.username,
+        passwordHash,
+        firstName: dto.firstName,
+        lastName: dto.lastName,
+        companyName: dto.companyName ?? null,
+        role: 'ADMIN',
+        status: 'PENDING',
+        adminId: null,
+      },
+    });
+
+    return { message: 'Registration submitted. A Super Admin will review your account shortly.' };
+  }
+
   async refresh(refreshToken: string) {
-    let payload: { sub: string; username: string; role: string };
+    let payload: { sub: string; username: string; role: string; adminId?: string | null };
     try {
       payload = this.jwt.verify(refreshToken, {
         secret: this.config.get<string>('JWT_REFRESH_SECRET'),
@@ -79,7 +104,7 @@ export class AuthService {
       data: { revokedAt: new Date() },
     });
 
-    return this.issueTokens(payload.sub, payload.username, payload.role);
+    return this.issueTokens(payload.sub, payload.username, payload.role, payload.adminId);
   }
 
   async logout(refreshToken: string): Promise<void> {
@@ -90,8 +115,8 @@ export class AuthService {
     });
   }
 
-  private async issueTokens(userId: string, username: string, role: string) {
-    const payload = { sub: userId, username, role };
+  private async issueTokens(userId: string, username: string, role: string, adminId?: string | null) {
+    const payload = { sub: userId, username, role, adminId: adminId ?? null };
     const accessToken = this.jwt.sign(payload, {
       secret: this.config.get<string>('JWT_ACCESS_SECRET'),
       expiresIn: this.accessExpiresIn as never,

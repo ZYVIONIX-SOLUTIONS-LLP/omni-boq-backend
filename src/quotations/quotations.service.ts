@@ -22,28 +22,46 @@ function lineAmount(item: { rate: number; quantity: number; discountPct?: number
 export class QuotationsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async list(params: { page?: number; limit?: number }) {
+  /** Non-SUPERADMIN users only ever see/touch quotations belonging to their own
+   *  tenant (an ADMIN and their STAFF share one tenant id). Throws NotFoundException
+   *  rather than a permission error so a foreign quotation's existence isn't leaked. */
+  private assertOwnership(quotation: { tenantId: string | null }, user?: any) {
+    if (!user || user.role === 'SUPERADMIN') return;
+    const tId = user.adminId || user.id;
+    if (quotation.tenantId !== tId) throw new NotFoundException('Quotation not found');
+  }
+
+  async list(params: { page?: number; limit?: number }, user?: any) {
     const page = params.page && params.page > 0 ? params.page : 1;
     const limit = params.limit && params.limit > 0 ? Math.min(params.limit, 5000) : 10;
 
+    const where: Prisma.QuotationWhereInput = {};
+    if (user && user.role !== 'SUPERADMIN') {
+      where.tenantId = user.adminId || user.id;
+    }
+
     const [items, totalItems] = await Promise.all([
       this.prisma.quotation.findMany({
+        where,
         include: QUOTATION_INCLUDE,
         orderBy: { createdAt: 'desc' },
         skip: (page - 1) * limit,
         take: limit,
       }),
-      this.prisma.quotation.count(),
+      this.prisma.quotation.count({ where }),
     ]);
 
     return { items, meta: buildPageMeta(totalItems, page, limit) };
   }
 
-  async get(id: string) {
-    return this.prisma.quotation.findUnique({ where: { id }, include: QUOTATION_INCLUDE });
+  async get(id: string, user?: any) {
+    const quotation = await this.prisma.quotation.findUnique({ where: { id }, include: QUOTATION_INCLUDE });
+    if (!quotation) throw new NotFoundException('Quotation not found');
+    this.assertOwnership(quotation, user);
+    return quotation;
   }
 
-  async createWithClient(dto: CreateQuotationWithClientDto) {
+  async createWithClient(dto: CreateQuotationWithClientDto, user?: any) {
     const quotationCode = await this.nextCode('quotation_code_seq', 'QUO');
     const projectCode = await this.nextCode('project_code_seq', 'PRJ');
 
@@ -51,6 +69,7 @@ export class QuotationsService {
       data: {
         code: quotationCode,
         status: 'DRAFT',
+        tenantId: user && user.role !== 'SUPERADMIN' ? user.adminId || user.id : null,
         customer: {
           create: {
             name: dto.clientName,
@@ -71,9 +90,10 @@ export class QuotationsService {
     });
   }
 
-  async update(id: string, dto: UpdateQuotationDto) {
+  async update(id: string, dto: UpdateQuotationDto, user?: any) {
     const existing = await this.prisma.quotation.findUnique({ where: { id }, include: QUOTATION_INCLUDE });
     if (!existing) throw new NotFoundException('Quotation not found');
+    this.assertOwnership(existing, user);
 
     return this.prisma.$transaction(async (tx) => {
       if (dto.items) {
@@ -136,9 +156,10 @@ export class QuotationsService {
     });
   }
 
-  async updateStatus(id: string, status: string) {
+  async updateStatus(id: string, status: string, user?: any) {
     const existing = await this.prisma.quotation.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException('Quotation not found');
+    this.assertOwnership(existing, user);
     return this.prisma.quotation.update({
       where: { id },
       data: { status: status as never },
@@ -146,18 +167,20 @@ export class QuotationsService {
     });
   }
 
-  async remove(id: string) {
+  async remove(id: string, user?: any) {
     const existing = await this.prisma.quotation.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException('Quotation not found');
+    this.assertOwnership(existing, user);
     await this.prisma.quotation.delete({ where: { id } });
   }
 
-  async addItem(quotationId: string, dto: QuotationItemDto) {
+  async addItem(quotationId: string, dto: QuotationItemDto, user?: any) {
     const quotation = await this.prisma.quotation.findUnique({
       where: { id: quotationId },
       include: { items: true },
     });
     if (!quotation) throw new NotFoundException('Quotation not found');
+    this.assertOwnership(quotation, user);
 
     return this.prisma.$transaction(async (tx) => {
       await tx.quotationItem.create({
@@ -178,9 +201,12 @@ export class QuotationsService {
     });
   }
 
-  async updateItem(quotationId: string, itemId: string, dto: Partial<QuotationItemDto>) {
+  async updateItem(quotationId: string, itemId: string, dto: Partial<QuotationItemDto>, user?: any) {
     const item = await this.prisma.quotationItem.findUnique({ where: { id: itemId } });
     if (!item || item.quotationId !== quotationId) throw new NotFoundException('Item not found');
+    const quotation = await this.prisma.quotation.findUnique({ where: { id: quotationId } });
+    if (!quotation) throw new NotFoundException('Quotation not found');
+    this.assertOwnership(quotation, user);
 
     return this.prisma.$transaction(async (tx) => {
       const merged = {
@@ -206,9 +232,12 @@ export class QuotationsService {
     });
   }
 
-  async removeItem(quotationId: string, itemId: string) {
+  async removeItem(quotationId: string, itemId: string, user?: any) {
     const item = await this.prisma.quotationItem.findUnique({ where: { id: itemId } });
     if (!item || item.quotationId !== quotationId) throw new NotFoundException('Item not found');
+    const quotation = await this.prisma.quotation.findUnique({ where: { id: quotationId } });
+    if (!quotation) throw new NotFoundException('Quotation not found');
+    this.assertOwnership(quotation, user);
 
     return this.prisma.$transaction(async (tx) => {
       await tx.quotationItem.delete({ where: { id: itemId } });

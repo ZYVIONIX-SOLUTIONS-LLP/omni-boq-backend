@@ -1,4 +1,4 @@
-import { IsIn, IsString } from 'class-validator';
+import { IsIn, IsOptional, IsString, MinLength } from 'class-validator';
 
 const ROLES = ['STAFF', 'ADMIN', 'SUPERADMIN'] as const;
 
@@ -11,6 +11,25 @@ export class LoginDto {
 
   @IsIn(ROLES)
   role!: (typeof ROLES)[number];
+}
+
+export class RegisterDto {
+  @IsString()
+  username!: string;
+
+  @IsString()
+  @MinLength(6)
+  password!: string;
+
+  @IsString()
+  firstName!: string;
+
+  @IsString()
+  lastName!: string;
+
+  @IsOptional()
+  @IsString()
+  companyName?: string;
 }
 
 export class RefreshDto {

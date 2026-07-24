@@ -11,6 +11,7 @@ export interface ListProductsParams {
   manufacturerId?: string;
   categoryId?: string;
   seriesId?: string;
+  scope?: 'global' | 'local' | 'all';
 }
 
 const PRODUCT_INCLUDE = {
@@ -27,7 +28,7 @@ const PRODUCT_INCLUDE = {
 export class ProductsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async listProducts(params: ListProductsParams) {
+  async listProducts(params: ListProductsParams, user?: any) {
     const page = params.page && params.page > 0 ? params.page : 1;
     const limit = params.limit && params.limit > 0 ? Math.min(params.limit, 5000) : 20;
 
@@ -36,28 +37,47 @@ export class ProductsService {
     if (params.categoryId) where.categoryId = params.categoryId;
     if (params.seriesId) where.seriesId = params.seriesId;
 
+    if (user?.role === 'SUPERADMIN') {
+      where.tenantId = null;
+    } else if (user) {
+      const tId = user.adminId || user.id;
+      if (params.scope === 'global') {
+        where.tenantId = null;
+      } else if (params.scope === 'local') {
+        where.tenantId = tId;
+      } else {
+        where.OR = [
+          { tenantId: null },
+          { tenantId: tId },
+        ];
+      }
+    }
+
     if (params.search) {
       const q = params.search.trim();
       if (q) {
-        where.OR = [
-          { nameNormalized: { contains: q.toLowerCase() } },
-          { manufacturer: { nameNormalized: { contains: q.toLowerCase() } } },
-          { series: { nameNormalized: { contains: q.toLowerCase() } } },
-          { category: { nameNormalized: { contains: q.toLowerCase() } } },
-          {
-            variants: {
-              some: {
-                OR: [
-                  { name: { contains: q, mode: 'insensitive' } },
-                  { modelCode: { contains: q, mode: 'insensitive' } },
-                  { manufacturerSku: { contains: q, mode: 'insensitive' } },
-                  { internalSku: { contains: q, mode: 'insensitive' } },
-                  { barcode: { contains: q, mode: 'insensitive' } },
-                ],
+        if (!where.AND) where.AND = [];
+        (where.AND as any[]).push({
+          OR: [
+            { nameNormalized: { contains: q.toLowerCase() } },
+            { manufacturer: { nameNormalized: { contains: q.toLowerCase() } } },
+            { series: { nameNormalized: { contains: q.toLowerCase() } } },
+            { category: { nameNormalized: { contains: q.toLowerCase() } } },
+            {
+              variants: {
+                some: {
+                  OR: [
+                    { name: { contains: q, mode: 'insensitive' } },
+                    { modelCode: { contains: q, mode: 'insensitive' } },
+                    { manufacturerSku: { contains: q, mode: 'insensitive' } },
+                    { internalSku: { contains: q, mode: 'insensitive' } },
+                    { barcode: { contains: q, mode: 'insensitive' } },
+                  ],
+                },
               },
             },
-          },
-        ];
+          ]
+        });
       }
     }
 
@@ -84,43 +104,98 @@ export class ProductsService {
     if (!product) return null;
     return {
       ...product,
-      variants: [...product.variants].sort((a, b) => a.name.localeCompare(b.name)),
+      variants: [...product.variants].sort((a, b) => a.name.localeCompare(b.name)).map((v) => this.mapVariant(v)),
     };
   }
 
-  async saveProduct(dto: SaveProductDto, id?: string) {
+  /** The `Variant` model stores prices as flat columns (priceMrp, priceDealer, ...); the
+   *  frontend's Variant type — and the SaveProductDto it sends back on update — expect a
+   *  nested `prices: { mrp, dealer, ... }` object instead. listProducts' summary mapping
+   *  already does this nesting for its own lightweight shape; getProduct needs the same
+   *  treatment for the full variant record it returns to the product view/edit screens. */
+  private mapVariant(v: Prisma.VariantGetPayload<Record<string, never>>) {
+    const {
+      priceMrp,
+      priceDealer,
+      priceDistributor,
+      priceContractor,
+      pricePurchase,
+      priceOffer,
+      ...rest
+    } = v;
+    return {
+      ...rest,
+      prices: {
+        mrp: priceMrp ? Number(priceMrp) : null,
+        dealer: priceDealer ? Number(priceDealer) : null,
+        distributor: priceDistributor ? Number(priceDistributor) : null,
+        contractor: priceContractor ? Number(priceContractor) : null,
+        purchase: pricePurchase ? Number(pricePurchase) : null,
+        offer: priceOffer ? Number(priceOffer) : null,
+      },
+      gstRate: v.gstRate ? Number(v.gstRate) : null,
+      discountPercent: v.discountPercent ? Number(v.discountPercent) : null,
+    };
+  }
+
+  async saveProduct(dto: SaveProductDto, id?: string, user?: any) {
     const name = dto.name.trim();
     if (!name) throw new ConflictException('Product name is required');
     if (!dto.variants || dto.variants.length === 0) {
       throw new ConflictException('At least one variant is required');
     }
 
-    const dup = await this.prisma.productModel.findFirst({
-      where: {
-        manufacturerId: dto.manufacturerId,
-        seriesId: dto.seriesId ?? null,
-        nameNormalized: normalizeName(name),
-        ...(id ? { id: { not: id } } : {}),
-      },
-    });
-    if (dup) throw new ConflictException(`"${name}" already exists for this manufacturer/series`);
+    if (!dto.manufacturerId && !dto.manufacturerName?.trim()) {
+      throw new ConflictException('Manufacturer is required (pick one or type a name)');
+    }
+    if (!dto.categoryId && !dto.categoryName?.trim()) {
+      throw new ConflictException('Category is required (pick one or type a name)');
+    }
+
+    if (dto.manufacturerId) {
+      const dup = await this.prisma.productModel.findFirst({
+        where: {
+          manufacturerId: dto.manufacturerId,
+          seriesId: dto.seriesId ?? null,
+          nameNormalized: normalizeName(name),
+          ...(id ? { id: { not: id } } : {}),
+        },
+      });
+      if (dup) throw new ConflictException(`"${name}" already exists for this manufacturer/series`);
+    }
+
+    if (id && user && user.role !== 'SUPERADMIN') {
+      const existing = await this.prisma.productModel.findUnique({ where: { id } });
+      if (!existing || existing.tenantId !== (user.adminId || user.id)) {
+        throw new ConflictException('You cannot edit a global or foreign product');
+      }
+    }
 
     const productData: Prisma.ProductModelUncheckedUpdateInput = {
       name,
       nameNormalized: normalizeName(name),
       description: dto.description ?? null,
-      manufacturerId: dto.manufacturerId,
+      manufacturerId: dto.manufacturerId ?? null,
+      manufacturerName: dto.manufacturerName?.trim() || null,
       divisionId: dto.divisionId ?? null,
       seriesId: dto.seriesId ?? null,
-      categoryId: dto.categoryId,
+      seriesName: dto.seriesName?.trim() || null,
+      categoryId: dto.categoryId ?? null,
+      categoryName: dto.categoryName?.trim() || null,
       subCategoryId: dto.subCategoryId ?? null,
+      subCategoryName: dto.subCategoryName?.trim() || null,
       attributes: (dto.attributes ?? {}) as Prisma.InputJsonValue,
       unitId: dto.unitId ?? null,
+      unitName: dto.unitName?.trim() || null,
       hsnCode: dto.hsnCode ?? null,
       gstRate: dto.gstRate ?? null,
       images: (dto.images ?? { gallery: [] }) as Prisma.InputJsonValue,
       status: dto.status ?? 'ACTIVE',
     };
+
+    if (!id && user && user.role !== 'SUPERADMIN') {
+      productData.tenantId = user.adminId || user.id;
+    }
 
     const productId = await this.prisma.$transaction(async (tx) => {
       const product = id
@@ -169,25 +244,38 @@ export class ProductsService {
     return this.getProduct(productId);
   }
 
-  async deleteProduct(id: string) {
+  async deleteProduct(id: string, user?: any) {
     const existing = await this.prisma.productModel.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException('Product not found');
+    
+    if (user && user.role !== 'SUPERADMIN') {
+      const tId = user.adminId || user.id;
+      if (existing.tenantId !== tId) {
+        throw new ConflictException('You cannot delete a global or foreign product');
+      }
+    }
+    
     await this.prisma.productModel.delete({ where: { id } });
   }
 
-  async exportProductRows(params: Omit<ListProductsParams, 'page' | 'limit'>) {
-    const { items } = await this.listProducts({ ...params, page: 1, limit: 5000 });
+  async deleteAllProducts() {
+    await this.prisma.variant.deleteMany({});
+    await this.prisma.productModel.deleteMany({});
+  }
+
+  async exportProductRows(params: Omit<ListProductsParams, 'page' | 'limit'>, user?: any) {
+    const { items } = await this.listProducts({ ...params, page: 1, limit: 5000 }, user);
     const rows: Array<Record<string, unknown>> = [];
 
     for (const p of items) {
       const specifications = await this.formatSpecifications(p.categoryId, p.attributes as Record<string, unknown>);
       const base = {
         productName: p.name,
-        manufacturer: p.manufacturer?.name ?? '',
-        series: p.series?.name ?? '',
-        category: p.category?.name ?? '',
-        subCategory: p.subCategory?.name ?? '',
-        unit: p.unit?.name ?? '',
+        manufacturer: p.manufacturer?.name ?? p.manufacturerName ?? '',
+        series: p.series?.name ?? p.seriesName ?? '',
+        category: p.category?.name ?? p.categoryName ?? '',
+        subCategory: p.subCategory?.name ?? p.subCategoryName ?? '',
+        unit: p.unit?.name ?? p.unitName ?? '',
         hsnCode: p.hsnCode ?? '',
         specifications,
       };
@@ -227,7 +315,11 @@ export class ProductsService {
     return rows;
   }
 
-  async formatSpecifications(categoryId: string, attributes: Record<string, unknown>): Promise<string> {
+  async formatSpecifications(
+    categoryId: string | null | undefined,
+    attributes: Record<string, unknown>,
+  ): Promise<string> {
+    if (!categoryId) return '';
     const defs = await this.prisma.attributeDef.findMany({ where: { categoryId } });
     const parts: string[] = [];
     for (const def of defs) {
