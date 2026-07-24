@@ -28,6 +28,7 @@ export class PrismaExceptionFilter implements ExceptionFilter {
       return;
     }
 
-    response.status(500).json({ statusCode: 500, message: 'Database error' });
+    console.error('Unhandled Prisma Exception:', exception);
+    response.status(500).json({ statusCode: 500, message: exception.message, code: exception.code });
   }
 }

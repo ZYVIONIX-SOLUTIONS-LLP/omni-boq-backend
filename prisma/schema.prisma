@@ -70,14 +70,14 @@ enum UserStatus {
 model Manufacturer {
   id             String   @id @default(cuid())
   name           String
-  nameNormalized String   @map("name_normalized")
+  nameNormalized String  
   description    String?
   code           String?
   country        String?
   website        String?
-  isActive       Boolean  @default(true) @map("is_active")
-  createdAt      DateTime @default(now()) @map("created_at")
-  updatedAt      DateTime @updatedAt @map("updated_at")
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   divisions Division[]
   series    ProductSeries[]
@@ -89,13 +89,13 @@ model Manufacturer {
 
 model Division {
   id             String   @id @default(cuid())
-  manufacturerId String   @map("manufacturer_id")
+  manufacturerId String  
   name           String
-  nameNormalized String   @map("name_normalized")
+  nameNormalized String  
   description    String?
-  isActive       Boolean  @default(true) @map("is_active")
-  createdAt      DateTime @default(now()) @map("created_at")
-  updatedAt      DateTime @updatedAt @map("updated_at")
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   manufacturer Manufacturer    @relation(fields: [manufacturerId], references: [id], onDelete: Restrict)
   series       ProductSeries[]
@@ -107,14 +107,14 @@ model Division {
 
 model ProductSeries {
   id             String   @id @default(cuid())
-  manufacturerId String   @map("manufacturer_id")
-  divisionId     String?  @map("division_id")
+  manufacturerId String  
+  divisionId     String? 
   name           String
-  nameNormalized String   @map("name_normalized")
+  nameNormalized String  
   description    String?
-  isActive       Boolean  @default(true) @map("is_active")
-  createdAt      DateTime @default(now()) @map("created_at")
-  updatedAt      DateTime @updatedAt @map("updated_at")
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   manufacturer Manufacturer   @relation(fields: [manufacturerId], references: [id], onDelete: Restrict)
   division     Division?      @relation(fields: [divisionId], references: [id], onDelete: SetNull)
@@ -127,13 +127,13 @@ model ProductSeries {
 model CatalogCategory {
   id             String   @id @default(cuid())
   name           String
-  nameNormalized String   @map("name_normalized")
+  nameNormalized String  
   description    String?
-  hsnCode        String?  @map("hsn_code")
-  defaultGstRate Decimal? @map("default_gst_rate") @db.Decimal(5, 2)
-  isActive       Boolean  @default(true) @map("is_active")
-  createdAt      DateTime @default(now()) @map("created_at")
-  updatedAt      DateTime @updatedAt @map("updated_at")
+  hsnCode        String? 
+  defaultGstRate Decimal? @db.Decimal(5, 2)
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   subCategories SubCategory[]
   attributeDefs AttributeDef[]
@@ -146,13 +146,13 @@ model CatalogCategory {
 
 model SubCategory {
   id             String   @id @default(cuid())
-  categoryId     String   @map("category_id")
+  categoryId     String  
   name           String
-  nameNormalized String   @map("name_normalized")
+  nameNormalized String  
   description    String?
-  isActive       Boolean  @default(true) @map("is_active")
-  createdAt      DateTime @default(now()) @map("created_at")
-  updatedAt      DateTime @updatedAt @map("updated_at")
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   category CatalogCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   products ProductModel[]
@@ -163,18 +163,18 @@ model SubCategory {
 
 model AttributeDef {
   id             String        @id @default(cuid())
-  categoryId     String        @map("category_id")
+  categoryId     String       
   name           String
-  nameNormalized String        @map("name_normalized")
+  nameNormalized String       
   description    String?
   type           AttributeType
   unit           String?
   options        String[]      @default([])
   required       Boolean       @default(false)
-  sortOrder      Int           @default(0) @map("sort_order")
-  isActive       Boolean       @default(true) @map("is_active")
-  createdAt      DateTime      @default(now()) @map("created_at")
-  updatedAt      DateTime      @updatedAt @map("updated_at")
+  sortOrder      Int           @default(0)
+  isActive       Boolean       @default(true)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
 
   category CatalogCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
 
@@ -185,12 +185,12 @@ model AttributeDef {
 model UnitDef {
   id             String   @id @default(cuid())
   name           String
-  nameNormalized String   @map("name_normalized")
+  nameNormalized String  
   description    String?
   symbol         String?
-  isActive       Boolean  @default(true) @map("is_active")
-  createdAt      DateTime @default(now()) @map("created_at")
-  updatedAt      DateTime @updatedAt @map("updated_at")
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   products ProductModel[]
 
@@ -201,12 +201,12 @@ model UnitDef {
 model TaxRate {
   id             String   @id @default(cuid())
   name           String
-  nameNormalized String   @map("name_normalized")
+  nameNormalized String  
   description    String?
-  ratePercent    Decimal  @map("rate_percent") @db.Decimal(5, 2)
-  isActive       Boolean  @default(true) @map("is_active")
-  createdAt      DateTime @default(now()) @map("created_at")
-  updatedAt      DateTime @updatedAt @map("updated_at")
+  ratePercent    Decimal  @db.Decimal(5, 2)
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   @@unique([nameNormalized])
   @@map("tax_rates")
@@ -215,12 +215,12 @@ model TaxRate {
 model HsnCode {
   id             String   @id @default(cuid())
   name           String
-  nameNormalized String   @map("name_normalized")
+  nameNormalized String  
   description    String?
-  gstRate        Decimal? @map("gst_rate") @db.Decimal(5, 2)
-  isActive       Boolean  @default(true) @map("is_active")
-  createdAt      DateTime @default(now()) @map("created_at")
-  updatedAt      DateTime @updatedAt @map("updated_at")
+  gstRate        Decimal? @db.Decimal(5, 2)
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   @@unique([nameNormalized])
   @@map("hsn_codes")
@@ -230,28 +230,28 @@ model HsnCode {
 
 model ProductModel {
   id               String        @id @default(cuid())
-  tenantId         String?       @map("tenant_id")
+  tenantId         String?      
   name             String
-  nameNormalized   String        @map("name_normalized")
+  nameNormalized   String       
   description      String?
-  manufacturerId   String?       @map("manufacturer_id")
-  manufacturerName String?       @map("manufacturer_name")
-  divisionId       String?       @map("division_id")
-  seriesId         String?       @map("series_id")
-  seriesName       String?       @map("series_name")
-  categoryId       String?       @map("category_id")
-  categoryName     String?       @map("category_name")
-  subCategoryId    String?       @map("sub_category_id")
-  subCategoryName  String?       @map("sub_category_name")
+  manufacturerId   String?      
+  manufacturerName String?      
+  divisionId       String?      
+  seriesId         String?      
+  seriesName       String?      
+  categoryId       String?      
+  categoryName     String?      
+  subCategoryId    String?      
+  subCategoryName  String?      
   attributes       Json          @default("{}")
-  unitId           String?       @map("unit_id")
-  unitName         String?       @map("unit_name")
-  hsnCode          String?       @map("hsn_code")
-  gstRate          Decimal?      @map("gst_rate") @db.Decimal(5, 2)
+  unitId           String?      
+  unitName         String?      
+  hsnCode          String?      
+  gstRate          Decimal?      @db.Decimal(5, 2)
   images           Json          @default("{\"gallery\":[]}")
   status           ProductStatus @default(ACTIVE)
-  createdAt        DateTime      @default(now()) @map("created_at")
-  updatedAt        DateTime      @updatedAt @map("updated_at")
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
 
   manufacturer Manufacturer?    @relation(fields: [manufacturerId], references: [id], onDelete: Restrict)
   division     Division?        @relation(fields: [divisionId], references: [id], onDelete: SetNull)
@@ -270,29 +270,29 @@ model ProductModel {
 
 model Variant {
   id               String        @id @default(cuid())
-  productId        String        @map("product_id")
+  productId        String       
   name             String
-  modelCode        String?       @map("model_code")
-  manufacturerSku  String?       @map("manufacturer_sku")
-  internalSku      String?       @map("internal_sku")
+  modelCode        String?      
+  manufacturerSku  String?      
+  internalSku      String?      
   barcode          String?
   ean              String?
   attributes       Json          @default("{}")
-  priceMrp         Decimal?      @map("price_mrp") @db.Decimal(12, 2)
-  priceDealer      Decimal?      @map("price_dealer") @db.Decimal(12, 2)
-  priceDistributor Decimal?      @map("price_distributor") @db.Decimal(12, 2)
-  priceContractor  Decimal?      @map("price_contractor") @db.Decimal(12, 2)
-  pricePurchase    Decimal?      @map("price_purchase") @db.Decimal(12, 2)
-  priceOffer       Decimal?      @map("price_offer") @db.Decimal(12, 2)
-  gstRate          Decimal?      @map("gst_rate") @db.Decimal(5, 2)
-  discountPercent  Decimal?      @map("discount_percent") @db.Decimal(5, 2)
-  stockQty         Int?          @map("stock_qty")
+  priceMrp         Decimal?      @db.Decimal(12, 2)
+  priceDealer      Decimal?      @db.Decimal(12, 2)
+  priceDistributor Decimal?      @db.Decimal(12, 2)
+  priceContractor  Decimal?      @db.Decimal(12, 2)
+  pricePurchase    Decimal?      @db.Decimal(12, 2)
+  priceOffer       Decimal?      @db.Decimal(12, 2)
+  gstRate          Decimal?      @db.Decimal(5, 2)
+  discountPercent  Decimal?      @db.Decimal(5, 2)
+  stockQty         Int?         
   status           ProductStatus @default(ACTIVE)
   image            Json?
-  createdAt        DateTime      @default(now()) @map("created_at")
-  updatedAt        DateTime      @updatedAt @map("updated_at")
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
 
-  product ProductModel @relation(fields: [productId], references: [id], onDelete: Cascade)
+  product            ProductModel                @relation(fields: [productId], references: [id], onDelete: Cascade)
   requirementOptions ActivityRequirementOption[]
 
   @@index([productId])
@@ -307,20 +307,20 @@ model Variant {
 
 model Activity {
   id           String          @id @default(cuid())
-  tenantId     String?         @map("tenant_id")
+  tenantId     String?        
   code         String          @unique
   name         String
-  wiringType   WiringType      @map("wiring_type")
+  wiringType   WiringType     
   category     String?
   segment      ProjectSegment?
   unit         UnitOfMeasure
   description  String?
-  isActive     Boolean         @default(true) @map("is_active")
-  sheetData    Json?           @map("sheet_data")
-  materialCost Decimal?        @map("material_cost") @db.Decimal(12, 2)
-  labourCost   Decimal?        @map("labour_cost") @db.Decimal(12, 2)
-  createdAt    DateTime        @default(now()) @map("created_at")
-  updatedAt    DateTime        @updatedAt @map("updated_at")
+  isActive     Boolean         @default(true)
+  sheetData    Json?          
+  materialCost Decimal?        @db.Decimal(12, 2)
+  labourCost   Decimal?        @db.Decimal(12, 2)
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
 
   requirements ActivityRequirement[]
 
@@ -332,15 +332,15 @@ model Activity {
 
 model ActivityRequirement {
   id          String        @id @default(cuid())
-  activityId  String        @map("activity_id")
-  categoryId  String        @map("category_id")
+  activityId  String       
+  categoryId  String       
   description String
   unit        UnitOfMeasure
   quantity    Decimal       @db.Decimal(12, 2)
-  sortOrder   Int           @default(0) @map("sort_order")
+  sortOrder   Int           @default(0)
 
-  activity Activity        @relation(fields: [activityId], references: [id], onDelete: Cascade)
-  category CatalogCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  activity Activity                    @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  category CatalogCategory             @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   options  ActivityRequirementOption[]
 
   @@index([activityId])
@@ -353,11 +353,11 @@ model ActivityRequirement {
 // and price populate the requirement's row in the Activity's own spreadsheet; Quotations pick
 // among these same options via their own per-row override instead of the full catalog search.
 model ActivityRequirementOption {
-  id            String   @id @default(cuid())
-  requirementId String   @map("requirement_id")
-  variantId     String   @map("variant_id")
-  isDefault     Boolean  @default(false) @map("is_default")
-  sortOrder     Int      @default(0) @map("sort_order")
+  id            String  @id @default(cuid())
+  requirementId String 
+  variantId     String 
+  isDefault     Boolean @default(false)
+  sortOrder     Int     @default(0)
 
   requirement ActivityRequirement @relation(fields: [requirementId], references: [id], onDelete: Cascade)
   variant     Variant             @relation(fields: [variantId], references: [id], onDelete: Cascade)
@@ -372,20 +372,20 @@ model ActivityRequirementOption {
 
 model Quotation {
   id                     String          @id @default(cuid())
-  tenantId               String?         @map("tenant_id")
+  tenantId               String?        
   code                   String          @unique
   status                 QuotationStatus @default(DRAFT)
-  subTotal               Decimal         @default(0) @map("sub_total") @db.Decimal(14, 2)
-  taxTotal               Decimal         @default(0) @map("tax_total") @db.Decimal(14, 2)
-  grandTotal             Decimal         @default(0) @map("grand_total") @db.Decimal(14, 2)
-  validTill              DateTime?       @map("valid_till")
-  termsAndConditions     String?         @map("terms_and_conditions")
-  sheetData              Json?           @map("sheet_data")
-  activityRows           Json?           @map("activity_rows")
-  activityCustomizations Json?           @map("activity_customizations")
-  brandPreferences       Json?           @map("brand_preferences")
-  createdAt              DateTime        @default(now()) @map("created_at")
-  updatedAt              DateTime        @updatedAt @map("updated_at")
+  subTotal               Decimal         @default(0) @db.Decimal(14, 2)
+  taxTotal               Decimal         @default(0) @db.Decimal(14, 2)
+  grandTotal             Decimal         @default(0) @db.Decimal(14, 2)
+  validTill              DateTime?      
+  termsAndConditions     String?        
+  sheetData              Json?          
+  activityRows           Json?          
+  activityCustomizations Json?          
+  brandPreferences       Json?          
+  createdAt              DateTime        @default(now())
+  updatedAt              DateTime        @updatedAt
 
   customer QuotationCustomer?
   project  QuotationProject?
@@ -397,7 +397,7 @@ model Quotation {
 
 model QuotationCustomer {
   id          String  @id @default(cuid())
-  quotationId String  @unique @map("quotation_id")
+  quotationId String  @unique
   name        String
   phone       String?
   address     String?
@@ -409,11 +409,11 @@ model QuotationCustomer {
 
 model QuotationProject {
   id          String    @id @default(cuid())
-  quotationId String    @unique @map("quotation_id")
+  quotationId String    @unique
   code        String    @unique
   name        String
-  startDate   DateTime? @map("start_date")
-  endDate     DateTime? @map("end_date")
+  startDate   DateTime?
+  endDate     DateTime?
 
   quotation Quotation @relation(fields: [quotationId], references: [id], onDelete: Cascade)
 
@@ -421,17 +421,17 @@ model QuotationProject {
 }
 
 model QuotationItem {
-  id          String   @id @default(cuid())
-  quotationId String   @map("quotation_id")
+  id          String  @id @default(cuid())
+  quotationId String 
   description String
   unit        String
-  quantity    Decimal  @db.Decimal(12, 2)
-  rate        Decimal  @db.Decimal(12, 2)
-  discountPct Decimal  @default(0) @map("discount_pct") @db.Decimal(5, 2)
-  profitPct   Decimal  @default(0) @map("profit_pct") @db.Decimal(5, 2)
-  taxRate     Decimal  @default(0) @map("tax_rate") @db.Decimal(5, 2)
-  amount      Decimal  @db.Decimal(14, 2)
-  sortOrder   Int      @default(0) @map("sort_order")
+  quantity    Decimal @db.Decimal(12, 2)
+  rate        Decimal @db.Decimal(12, 2)
+  discountPct Decimal @default(0) @db.Decimal(5, 2)
+  profitPct   Decimal @default(0) @db.Decimal(5, 2)
+  taxRate     Decimal @default(0) @db.Decimal(5, 2)
+  amount      Decimal @db.Decimal(14, 2)
+  sortOrder   Int     @default(0)
 
   quotation Quotation @relation(fields: [quotationId], references: [id], onDelete: Cascade)
 
@@ -444,14 +444,14 @@ model QuotationItem {
 model User {
   id           String     @id @default(cuid())
   username     String     @unique
-  passwordHash String     @map("password_hash")
-  firstName    String     @map("first_name")
-  lastName     String     @map("last_name")
-  role         UserRole
+  passwordHash String     @map("password")
+  firstName    String
+  lastName     String
+  role         UserRole?
   status       UserStatus @default(APPROVED)
-  companyName  String?    @map("company_name")
-  adminId      String?    @map("admin_id")
-  createdAt    DateTime   @default(now()) @map("created_at")
+  companyName  String?
+  adminId      String?
+  createdAt    DateTime   @default(now())
 
   refreshTokens RefreshToken[]
 
@@ -460,11 +460,11 @@ model User {
 
 model RefreshToken {
   id        String    @id @default(cuid())
-  userId    String    @map("user_id")
-  tokenHash String    @unique @map("token_hash")
-  expiresAt DateTime  @map("expires_at")
-  revokedAt DateTime? @map("revoked_at")
-  createdAt DateTime  @default(now()) @map("created_at")
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
