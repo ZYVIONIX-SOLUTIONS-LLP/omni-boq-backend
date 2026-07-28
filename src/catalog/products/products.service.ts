@@ -1,7 +1,7 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
-import { buildPageMeta, normalizeName } from '../../common/pagination.util';
+import { buildPageMeta } from '../../common/pagination.util';
 import { SaveProductDto } from './dto';
 
 export interface ListProductsParams {
@@ -16,12 +16,8 @@ export interface ListProductsParams {
 
 const PRODUCT_INCLUDE = {
   manufacturer: true,
-  division: true,
-  series: true,
   category: true,
   subCategory: true,
-  unit: true,
-  variants: true,
 } satisfies Prisma.ProductModelInclude;
 
 @Injectable()
@@ -35,7 +31,7 @@ export class ProductsService {
     const where: Prisma.ProductModelWhereInput = {};
     if (params.manufacturerId) where.manufacturerId = params.manufacturerId;
     if (params.categoryId) where.categoryId = params.categoryId;
-    if (params.seriesId) where.seriesId = params.seriesId;
+    if (params.seriesId) where.series = params.seriesId;
 
     if (user?.role === 'SUPERADMIN') {
       where.tenantId = null;
@@ -59,23 +55,13 @@ export class ProductsService {
         if (!where.AND) where.AND = [];
         (where.AND as any[]).push({
           OR: [
-            { nameNormalized: { contains: q.toLowerCase() } },
+            { modelCode: { contains: q, mode: 'insensitive' } },
+            { manufacturerName: { contains: q, mode: 'insensitive' } },
             { manufacturer: { nameNormalized: { contains: q.toLowerCase() } } },
-            { series: { nameNormalized: { contains: q.toLowerCase() } } },
+            { series: { contains: q, mode: 'insensitive' } },
+            { categoryName: { contains: q, mode: 'insensitive' } },
             { category: { nameNormalized: { contains: q.toLowerCase() } } },
-            {
-              variants: {
-                some: {
-                  OR: [
-                    { name: { contains: q, mode: 'insensitive' } },
-                    { modelCode: { contains: q, mode: 'insensitive' } },
-                    { manufacturerSku: { contains: q, mode: 'insensitive' } },
-                    { internalSku: { contains: q, mode: 'insensitive' } },
-                    { barcode: { contains: q, mode: 'insensitive' } },
-                  ],
-                },
-              },
-            },
+            { color: { contains: q, mode: 'insensitive' } },
           ]
         });
       }
@@ -104,64 +90,18 @@ export class ProductsService {
     if (!product) return null;
     return {
       ...product,
-      variants: [...product.variants].sort((a, b) => a.name.localeCompare(b.name)).map((v) => this.mapVariant(v)),
-    };
-  }
-
-  /** The `Variant` model stores prices as flat columns (priceMrp, priceDealer, ...); the
-   *  frontend's Variant type — and the SaveProductDto it sends back on update — expect a
-   *  nested `prices: { mrp, dealer, ... }` object instead. listProducts' summary mapping
-   *  already does this nesting for its own lightweight shape; getProduct needs the same
-   *  treatment for the full variant record it returns to the product view/edit screens. */
-  private mapVariant(v: Prisma.VariantGetPayload<Record<string, never>>) {
-    const {
-      priceMrp,
-      priceDealer,
-      priceDistributor,
-      priceContractor,
-      pricePurchase,
-      priceOffer,
-      ...rest
-    } = v;
-    return {
-      ...rest,
-      prices: {
-        mrp: priceMrp ? Number(priceMrp) : null,
-        dealer: priceDealer ? Number(priceDealer) : null,
-        distributor: priceDistributor ? Number(priceDistributor) : null,
-        contractor: priceContractor ? Number(priceContractor) : null,
-        purchase: pricePurchase ? Number(pricePurchase) : null,
-        offer: priceOffer ? Number(priceOffer) : null,
-      },
-      gstRate: v.gstRate ? Number(v.gstRate) : null,
-      discountPercent: v.discountPercent ? Number(v.discountPercent) : null,
+      mrp: product.mrp ? Number(product.mrp) : null,
+      gstRate: product.gstRate ? Number(product.gstRate) : null,
+      discountPercent: product.discountPercent ? Number(product.discountPercent) : null,
     };
   }
 
   async saveProduct(dto: SaveProductDto, id?: string, user?: any) {
-    const name = dto.name.trim();
-    if (!name) throw new ConflictException('Product name is required');
-    if (!dto.variants || dto.variants.length === 0) {
-      throw new ConflictException('At least one variant is required');
-    }
-
     if (!dto.manufacturerId && !dto.manufacturerName?.trim()) {
       throw new ConflictException('Manufacturer is required (pick one or type a name)');
     }
     if (!dto.categoryId && !dto.categoryName?.trim()) {
       throw new ConflictException('Category is required (pick one or type a name)');
-    }
-
-    if (dto.manufacturerId) {
-      const dup = await this.prisma.productModel.findFirst({
-        where: {
-          manufacturerId: dto.manufacturerId,
-          seriesId: dto.seriesId ?? null,
-          nameNormalized: normalizeName(name),
-          ...(id ? { id: { not: id } } : {}),
-        },
-      });
-      if (dup) throw new ConflictException(`"${name}" already exists for this manufacturer/series`);
     }
 
     if (id && user && user.role !== 'SUPERADMIN') {
@@ -172,23 +112,23 @@ export class ProductsService {
     }
 
     const productData: Prisma.ProductModelUncheckedUpdateInput = {
-      name,
-      nameNormalized: normalizeName(name),
-      description: dto.description ?? null,
+      name: dto.name?.trim() || null,
       manufacturerId: dto.manufacturerId ?? null,
       manufacturerName: dto.manufacturerName?.trim() || null,
-      divisionId: dto.divisionId ?? null,
-      seriesId: dto.seriesId ?? null,
-      seriesName: dto.seriesName?.trim() || null,
+      series: dto.series?.trim() || null,
+      voltageClass: dto.voltageClass ?? null,
       categoryId: dto.categoryId ?? null,
       categoryName: dto.categoryName?.trim() || null,
       subCategoryId: dto.subCategoryId ?? null,
       subCategoryName: dto.subCategoryName?.trim() || null,
+      color: dto.color?.trim() || null,
+      modelCode: dto.modelCode?.trim() || null,
       attributes: (dto.attributes ?? {}) as Prisma.InputJsonValue,
-      unitId: dto.unitId ?? null,
-      unitName: dto.unitName?.trim() || null,
-      hsnCode: dto.hsnCode ?? null,
+      unit: dto.unit?.trim() || null,
+      hsnCode: dto.hsnCode?.trim() || null,
       gstRate: dto.gstRate ?? null,
+      mrp: dto.mrp ?? null,
+      discountPercent: dto.discountPercent ?? null,
       images: (dto.images ?? { gallery: [] }) as Prisma.InputJsonValue,
       status: dto.status ?? 'ACTIVE',
     };
@@ -197,51 +137,11 @@ export class ProductsService {
       productData.tenantId = user.adminId || user.id;
     }
 
-    const productId = await this.prisma.$transaction(async (tx) => {
-      const product = id
-        ? await tx.productModel.update({ where: { id }, data: productData })
-        : await tx.productModel.create({ data: productData as Prisma.ProductModelCreateInput });
+    const product = id
+      ? await this.prisma.productModel.update({ where: { id }, data: productData })
+      : await this.prisma.productModel.create({ data: productData as Prisma.ProductModelCreateInput });
 
-      const existingVariants = id ? await tx.variant.findMany({ where: { productId: product.id } }) : [];
-      const incomingIds = new Set(dto.variants.filter((v) => v.id).map((v) => v.id));
-      const toDelete = existingVariants.filter((v) => !incomingIds.has(v.id));
-      if (toDelete.length > 0) {
-        await tx.variant.deleteMany({ where: { id: { in: toDelete.map((v) => v.id) } } });
-      }
-
-      for (const v of dto.variants) {
-        const variantData = {
-          name: v.name,
-          modelCode: v.modelCode ?? null,
-          manufacturerSku: v.manufacturerSku ?? null,
-          internalSku: v.internalSku ?? null,
-          barcode: v.barcode ?? null,
-          ean: v.ean ?? null,
-          attributes: (v.attributes ?? {}) as Prisma.InputJsonValue,
-          priceMrp: v.prices?.mrp ?? null,
-          priceDealer: v.prices?.dealer ?? null,
-          priceDistributor: v.prices?.distributor ?? null,
-          priceContractor: v.prices?.contractor ?? null,
-          pricePurchase: v.prices?.purchase ?? null,
-          priceOffer: v.prices?.offer ?? null,
-          gstRate: v.gstRate ?? null,
-          discountPercent: v.discountPercent ?? null,
-          stockQty: v.stockQty ?? null,
-          status: v.status ?? 'ACTIVE',
-          image: (v.image ?? null) as Prisma.InputJsonValue,
-        };
-
-        if (v.id) {
-          await tx.variant.update({ where: { id: v.id }, data: variantData });
-        } else {
-          await tx.variant.create({ data: { ...variantData, productId: product.id } });
-        }
-      }
-
-      return product.id;
-    });
-
-    return this.getProduct(productId);
+    return this.getProduct(product.id);
   }
 
   async deleteProduct(id: string, user?: any) {
@@ -259,7 +159,6 @@ export class ProductsService {
   }
 
   async deleteAllProducts() {
-    await this.prisma.variant.deleteMany({});
     await this.prisma.productModel.deleteMany({});
   }
 
@@ -269,47 +168,23 @@ export class ProductsService {
 
     for (const p of items) {
       const specifications = await this.formatSpecifications(p.categoryId, p.attributes as Record<string, unknown>);
-      const base = {
-        productName: p.name,
+      rows.push({
+        name: p.name ?? '',
+        modelCode: p.modelCode ?? '',
         manufacturer: p.manufacturer?.name ?? p.manufacturerName ?? '',
-        series: p.series?.name ?? p.seriesName ?? '',
+        series: p.series ?? '',
+        voltageClass: p.voltageClass ?? '',
         category: p.category?.name ?? p.categoryName ?? '',
         subCategory: p.subCategory?.name ?? p.subCategoryName ?? '',
-        unit: p.unit?.name ?? p.unitName ?? '',
+        color: p.color ?? '',
+        unit: p.unit ?? '',
         hsnCode: p.hsnCode ?? '',
         specifications,
-      };
-
-      if (p.variantSummaries.length === 0) {
-        rows.push({
-          ...base,
-          modelCode: '',
-          variantName: '',
-          gstRate: null,
-          mrp: null,
-          dealer: null,
-          distributor: null,
-          contractor: null,
-          purchase: null,
-          status: p.status,
-        });
-        continue;
-      }
-
-      for (const v of p.variantSummaries) {
-        rows.push({
-          ...base,
-          modelCode: v.modelCode ?? '',
-          variantName: v.name,
-          gstRate: v.gstRate,
-          mrp: v.mrp,
-          dealer: v.dealer,
-          distributor: v.distributor,
-          contractor: v.contractor,
-          purchase: v.purchase,
-          status: v.status,
-        });
-      }
+        mrp: p.mrp,
+        gstRate: p.gstRate,
+        discountPercent: p.discountPercent,
+        status: p.status,
+      });
     }
 
     return rows;
@@ -323,7 +198,7 @@ export class ProductsService {
     const defs = await this.prisma.attributeDef.findMany({ where: { categoryId } });
     const parts: string[] = [];
     for (const def of defs) {
-      const value = attributes?.[def.id];
+      const value = (attributes as Record<string, unknown>)?.[def.id];
       if (value === null || value === undefined || value === '') continue;
       parts.push(`${def.name}: ${value}`);
     }
@@ -331,27 +206,10 @@ export class ProductsService {
   }
 
   private toListRow(product: Prisma.ProductModelGetPayload<{ include: typeof PRODUCT_INCLUDE }>) {
-    const variantSummaries = product.variants.map((v) => ({
-      id: v.id,
-      name: v.name,
-      modelCode: v.modelCode,
-      mrp: v.priceMrp ? Number(v.priceMrp) : null,
-      dealer: v.priceDealer ? Number(v.priceDealer) : null,
-      distributor: v.priceDistributor ? Number(v.priceDistributor) : null,
-      contractor: v.priceContractor ? Number(v.priceContractor) : null,
-      purchase: v.pricePurchase ? Number(v.pricePurchase) : null,
-      gstRate: v.gstRate ? Number(v.gstRate) : null,
-      status: v.status,
-    }));
-    const mrps = variantSummaries.map((v) => v.mrp).filter((n): n is number => n !== null);
-
     return {
       ...product,
-      variants: undefined,
-      variantSummaries,
-      variantCount: variantSummaries.length,
-      minMrp: mrps.length ? Math.min(...mrps) : null,
-      maxMrp: mrps.length ? Math.max(...mrps) : null,
+      mrp: product.mrp ? Number(product.mrp) : null,
+      gstRate: product.gstRate ? Number(product.gstRate) : null,
     };
   }
 }

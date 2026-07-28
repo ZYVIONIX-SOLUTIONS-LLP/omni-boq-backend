@@ -29,6 +29,11 @@ export class QuotationsController {
     return this.service.createWithClient(dto, req.user);
   }
 
+  @Post(':id/ai-generate')
+  generateAiDraft(@Req() req: any, @Param('id') id: string, @Body('prompt') prompt: string) {
+    return this.service.generateAiDraft(id, prompt, req.user);
+  }
+
   @Get(':id')
   get(@Req() req: any, @Param('id') id: string) {
     return this.service.get(id, req.user);

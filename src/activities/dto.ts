@@ -4,7 +4,6 @@ import {
   IsBoolean,
   IsIn,
   IsNumber,
-  IsObject,
   IsOptional,
   IsString,
   ValidateNested,
@@ -15,7 +14,7 @@ const SEGMENTS = ['RESIDENTIAL', 'COMMERCIAL', 'INDUSTRIAL'] as const;
 
 export class ActivityRequirementOptionDto {
   @IsString()
-  variantId!: string;
+  productModelId!: string;
 
   @IsOptional()
   @IsBoolean()
@@ -41,6 +40,14 @@ export class ActivityRequirementDto {
 
   @IsOptional()
   @IsNumber()
+  discountPercent?: number;
+
+  @IsOptional()
+  @IsNumber()
+  taxPercent?: number;
+
+  @IsOptional()
+  @IsNumber()
   sortOrder?: number;
 
   /** Alternate makes (specific catalog variants) this requirement can be fulfilled with.
@@ -50,6 +57,23 @@ export class ActivityRequirementDto {
   @ValidateNested({ each: true })
   @Type(() => ActivityRequirementOptionDto)
   options?: ActivityRequirementOptionDto[];
+}
+
+/** A standalone cost line not tied to any category/product — labour, delivery, etc. */
+export class ActivityChargeDto {
+  @IsOptional()
+  @IsString()
+  id?: string;
+
+  @IsString()
+  description!: string;
+
+  @IsNumber()
+  amount!: number;
+
+  @IsOptional()
+  @IsNumber()
+  sortOrder?: number;
 }
 
 export class CreateActivityDto {
@@ -80,13 +104,11 @@ export class CreateActivityDto {
   @Type(() => ActivityRequirementDto)
   requirements!: ActivityRequirementDto[];
 
-  /** Opaque spreadsheet workbook blob — shape owned by the frontend spreadsheet
-   *  store (current multi-sheet form, or the older single-sheet form for records
-   *  saved before sheet tabs existed), so it's stored as-is rather than validated
-   *  field-by-field. */
   @IsOptional()
-  @IsObject()
-  sheetData?: Record<string, unknown>;
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ActivityChargeDto)
+  charges?: ActivityChargeDto[];
 
   @IsOptional()
   @IsNumber()
@@ -129,8 +151,10 @@ export class UpdateActivityDto {
   requirements?: ActivityRequirementDto[];
 
   @IsOptional()
-  @IsObject()
-  sheetData?: Record<string, unknown> | null;
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ActivityChargeDto)
+  charges?: ActivityChargeDto[];
 
   @IsOptional()
   @IsNumber()

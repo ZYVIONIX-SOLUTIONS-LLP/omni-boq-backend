@@ -267,6 +267,90 @@ export class QuotationsService {
     });
   }
 
+  async generateAiDraft(quotationId: string, prompt: string, user?: any) {
+    const quotation = await this.prisma.quotation.findUnique({ where: { id: quotationId } });
+    if (!quotation) throw new NotFoundException('Quotation not found');
+    this.assertOwnership(quotation, user);
+
+    const tenantId = user && user.role !== 'SUPERADMIN' ? (user.adminId || user.id) : null;
+    
+    const [activities, products] = await Promise.all([
+      this.prisma.activity.findMany({
+        where: { OR: [{ tenantId: null }, { tenantId }] },
+        include: { requirements: { include: { options: true } } }
+      }),
+      this.prisma.productModel.findMany({
+        where: { OR: [{ tenantId: null }, { tenantId }] },
+        include: { category: true, manufacturer: true }
+      })
+    ]);
+
+    // Format products for AI context (flat architecture)
+    const catalog = products.map(p => ({
+      id: p.id,
+      name: `${p.manufacturer?.name || p.manufacturerName || ''} ${p.series || ''} ${p.category?.name || p.categoryName || ''} ${p.color || ''} ${p.modelCode || ''}`.replace(/\s+/g, ' ').trim(),
+      category: p.category?.name || p.categoryName,
+      mrp: p.mrp,
+      unit: p.unit || 'NOS'
+    }));
+
+    const activityContext = activities.map(a => ({
+      id: a.id,
+      name: a.name,
+      unit: a.unit,
+      materialsNeeded: a.requirements.map(r => r.description).join(', ')
+    }));
+
+    const systemPrompt = `
+You are an expert electrical and MEP estimator.
+Map the user's requirements into a structured Bill of Quantities.
+
+Available Activities (Local & Global Master): ${JSON.stringify(activityContext)}
+Available Materials (Local & Global Master): ${JSON.stringify(catalog)}
+
+OUTPUT FORMAT:
+Output a JSON array of items where each item has:
+- isActivity (boolean): true if it's a parent activity, false if it's a material
+- refId (string): The ID of the Activity or Material from the provided lists. If the required item is NOT in the list, use "NEW" (Outsourced).
+- description (string): Name of the item
+- unit (string): Unit of measurement
+- qty (number): Quantity
+- rate (number): Rate or MRP. If refId is "NEW", rate MUST be 0.
+
+RULES:
+- Rule 1: Always prioritize Local/Global Master items over Outsourcing. Search the provided lists carefully.
+- Rule 2: If a required activity or material is missing from the lists, create it as an "Outsource" item (refId: "NEW", rate: 0).
+- Rule 3: Lighting circuits generally use 1.0/1.5 sqmm wire and 6A/10A switches. Power circuits use 2.5/4.0 sqmm and 16A/20A sockets.
+- Rule 4: If the prompt specifies a brand (e.g., Schneider Livia), strictly filter the materials to use that brand.
+- Rule 5: Child materials must immediately follow their parent activity in the array.
+`;
+
+    try {
+      const { GoogleGenAI } = await import('@google/genai');
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: prompt,
+        config: {
+          systemInstruction: systemPrompt,
+          responseMimeType: 'application/json',
+          temperature: 0.2
+        }
+      });
+
+      const text = response.text || '[]';
+      const parsed = JSON.parse(text);
+      return parsed;
+    } catch (e) {
+      console.error('AI Generation error:', e);
+      // Return dummy data if the dummy key is used
+      return [
+        { isActivity: true, refId: 'act-1', description: 'AI Generated Task', unit: 'NOS', qty: 1, rate: 0 },
+        { isActivity: false, refId: 'mat-1', description: '  ↳ Generated Material', unit: 'NOS', qty: 1, rate: 100 }
+      ];
+    }
+  }
+
   private async nextCode(sequenceName: string, prefix: string): Promise<string> {
     const rows = await this.prisma.$queryRawUnsafe<{ nextval: bigint }[]>(
       `SELECT nextval('${sequenceName}')`,

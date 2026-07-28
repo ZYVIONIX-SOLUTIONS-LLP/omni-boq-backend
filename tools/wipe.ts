@@ -6,7 +6,6 @@ async function main() {
   await prisma.activityRequirementOption.deleteMany({});
   await prisma.activityRequirement.deleteMany({});
   await prisma.activity.deleteMany({});
-  await prisma.variant.deleteMany({});
   await prisma.productModel.deleteMany({});
   console.log('Deleted all activities and materials.');
 }

@@ -2,7 +2,12 @@ import { Injectable, NotFoundException, ConflictException } from '@nestjs/common
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { buildPageMeta } from '../common/pagination.util';
-import { ActivityRequirementOptionDto, CreateActivityDto, UpdateActivityDto } from './dto';
+import {
+  ActivityChargeDto,
+  ActivityRequirementOptionDto,
+  CreateActivityDto,
+  UpdateActivityDto,
+} from './dto';
 
 export interface ListActivitiesParams {
   page?: number;
@@ -21,9 +26,20 @@ function buildOptionsCreate(options: ActivityRequirementOptionDto[] | undefined)
   const hasDefault = options.some((o) => o.isDefault);
   return {
     create: options.map((o, i) => ({
-      variantId: o.variantId,
+      productId: o.productModelId,
       isDefault: hasDefault ? Boolean(o.isDefault) : i === 0,
       sortOrder: i,
+    })),
+  };
+}
+
+function buildChargesCreate(charges: ActivityChargeDto[] | undefined) {
+  if (!charges || charges.length === 0) return undefined;
+  return {
+    create: charges.map((c, i) => ({
+      description: c.description,
+      amount: c.amount,
+      sortOrder: c.sortOrder ?? i,
     })),
   };
 }
@@ -35,14 +51,17 @@ const ACTIVITY_INCLUDE = {
       options: {
         orderBy: { sortOrder: 'asc' },
         include: {
-          variant: {
+          product: {
             include: {
-              product: { include: { manufacturer: true } },
+              manufacturer: true,
             },
           },
         },
       },
     },
+  },
+  charges: {
+    orderBy: { sortOrder: 'asc' },
   },
 } satisfies Prisma.ActivityInclude;
 
@@ -123,7 +142,6 @@ export class ActivitiesService {
         segment: (dto.segment ?? null) as never,
         unit: (dto.unit || (dto.wiringType === 'POINT_WIRING' ? 'POINT' : 'CIRCUIT')) as never,
         description: dto.description ?? null,
-        sheetData: (dto.sheetData ?? null) as Prisma.InputJsonValue,
         materialCost: dto.materialCost ?? null,
         labourCost: dto.labourCost ?? null,
         tenantId,
@@ -131,12 +149,15 @@ export class ActivitiesService {
           create: dto.requirements.map((r, i) => ({
             categoryId: r.categoryId,
             description: r.description,
-            unit: r.unit as never,
+            unit: (r.unit?.toUpperCase() || 'NOS') as never,
             quantity: r.quantity,
+            discountPercent: r.discountPercent ?? undefined,
+            taxPercent: r.taxPercent ?? undefined,
             sortOrder: r.sortOrder ?? i,
             options: buildOptionsCreate(r.options),
           })),
         },
+        charges: buildChargesCreate(dto.charges),
       },
       include: ACTIVITY_INCLUDE,
     });
@@ -159,10 +180,26 @@ export class ActivitiesService {
               activityId: id,
               categoryId: r.categoryId,
               description: r.description,
-              unit: r.unit as never,
+              unit: (r.unit?.toUpperCase() || 'NOS') as never,
               quantity: r.quantity,
+              discountPercent: r.discountPercent ?? undefined,
+              taxPercent: r.taxPercent ?? undefined,
               sortOrder: r.sortOrder ?? i,
               options: buildOptionsCreate(r.options),
+            },
+          });
+        }
+      }
+
+      if (dto.charges) {
+        await tx.activityCharge.deleteMany({ where: { activityId: id } });
+        for (const [i, c] of dto.charges.entries()) {
+          await tx.activityCharge.create({
+            data: {
+              activityId: id,
+              description: c.description,
+              amount: c.amount,
+              sortOrder: c.sortOrder ?? i,
             },
           });
         }
@@ -177,7 +214,6 @@ export class ActivitiesService {
           segment: dto.segment !== undefined ? (dto.segment as never) : undefined,
           unit: (dto.unit as never) ?? undefined,
           description: dto.description !== undefined ? dto.description : undefined,
-          sheetData: dto.sheetData !== undefined ? (dto.sheetData as Prisma.InputJsonValue) : undefined,
           materialCost: dto.materialCost !== undefined ? dto.materialCost : undefined,
           labourCost: dto.labourCost !== undefined ? dto.labourCost : undefined,
         },
@@ -185,20 +221,20 @@ export class ActivitiesService {
       });
 
       return updated;
-    });
+    }, { maxWait: 10000, timeout: 60000 });
   }
 
   async remove(id: string, user?: any) {
     const existing = await this.prisma.activity.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException('Activity not found');
-    
+
     if (user && user.role !== 'SUPERADMIN') {
       const tId = user.adminId || user.id;
       if (existing.tenantId !== tId) {
         throw new ConflictException('You cannot delete a global or foreign activity');
       }
     }
-    
+
     await this.prisma.activity.delete({ where: { id } });
   }
 
@@ -225,7 +261,6 @@ export class ActivitiesService {
         segment: source.segment,
         unit: source.unit,
         description: source.description,
-        sheetData: source.sheetData as Prisma.InputJsonValue,
         materialCost: source.materialCost,
         labourCost: source.labourCost,
         tenantId,
@@ -235,17 +270,26 @@ export class ActivitiesService {
             description: r.description,
             unit: r.unit,
             quantity: r.quantity,
+            discountPercent: r.discountPercent,
+            taxPercent: r.taxPercent,
             sortOrder: r.sortOrder,
             options:
               r.options.length > 0
                 ? {
                     create: r.options.map((o) => ({
-                      variantId: o.variantId,
+                      productId: o.productId,
                       isDefault: o.isDefault,
                       sortOrder: o.sortOrder,
                     })),
                   }
                 : undefined,
+          })),
+        },
+        charges: {
+          create: source.charges.map((c) => ({
+            description: c.description,
+            amount: c.amount,
+            sortOrder: c.sortOrder,
           })),
         },
       },

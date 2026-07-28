@@ -93,7 +93,25 @@ export abstract class GenericCrudService<T extends { id: string; name: string; i
   }
 
   async remove(id: string): Promise<void> {
-    await this.delegate.delete({ where: { id } });
+    try {
+      await this.delegate.delete({ where: { id } });
+    } catch (err) {
+      if (this.isForeignKeyViolation(err)) {
+        throw new ConflictException(
+          'This item is still referenced elsewhere (e.g. products or sub-categories) and cannot be deleted until those are removed or reassigned.',
+        );
+      }
+      throw err;
+    }
+  }
+
+  private isForeignKeyViolation(err: unknown): boolean {
+    const e = err as { code?: string; message?: string } | undefined;
+    return (
+      e?.code === 'P2003' ||
+      Boolean(e?.message?.includes('23001')) ||
+      Boolean(e?.message?.toLowerCase().includes('foreign key constraint'))
+    );
   }
 
   private async assertNoDuplicate(
