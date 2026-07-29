@@ -115,7 +115,7 @@ export async function importCatalogData(): Promise<void> {
       create: {
         id: p.id,
         manufacturerId: p.manufacturerId as string,
-        series: (p.series as string | null) ?? null,
+        series: (typeof p.series === 'object' && p.series !== null) ? (p.series as any).name : ((p.series as string | null) ?? null),
         categoryId: p.categoryId as string,
         subCategoryId: (p.subCategoryId as string | null) ?? null,
         attributes: (p.attributes as object) ?? {},
