@@ -165,7 +165,6 @@ async function seedActivities() {
         wiringType: a.wiringType,
         segment: a.segment,
         unit: a.wiringType === 'POINT_WIRING' ? 'POINT' : 'CIRCUIT',
-        materialCost: a.materialCost,
         labourCost: a.labourCost,
       },
       update: {},

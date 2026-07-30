@@ -12,15 +12,6 @@ import {
 const WIRING_TYPES = ['POINT_WIRING', 'CIRCUIT_WIRING'] as const;
 const SEGMENTS = ['RESIDENTIAL', 'COMMERCIAL', 'INDUSTRIAL'] as const;
 
-export class ActivityRequirementOptionDto {
-  @IsString()
-  productModelId!: string;
-
-  @IsOptional()
-  @IsBoolean()
-  isDefault?: boolean;
-}
-
 export class ActivityRequirementDto {
   @IsOptional()
   @IsString()
@@ -39,24 +30,15 @@ export class ActivityRequirementDto {
   quantity!: number;
 
   @IsOptional()
-  @IsNumber()
-  discountPercent?: number;
+  @IsString()
+  subCategoryId?: string;
 
   @IsOptional()
-  @IsNumber()
-  taxPercent?: number;
+  requiredAttributes?: any;
 
   @IsOptional()
   @IsNumber()
   sortOrder?: number;
-
-  /** Alternate makes (specific catalog variants) this requirement can be fulfilled with.
-   *  Omitted or empty means "simple" — the existing single-description behavior, unchanged. */
-  @IsOptional()
-  @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => ActivityRequirementOptionDto)
-  options?: ActivityRequirementOptionDto[];
 }
 
 /** A standalone cost line not tied to any category/product — labour, delivery, etc. */
@@ -112,10 +94,6 @@ export class CreateActivityDto {
 
   @IsOptional()
   @IsNumber()
-  materialCost?: number;
-
-  @IsOptional()
-  @IsNumber()
   labourCost?: number;
 }
 
@@ -155,10 +133,6 @@ export class UpdateActivityDto {
   @ValidateNested({ each: true })
   @Type(() => ActivityChargeDto)
   charges?: ActivityChargeDto[];
-
-  @IsOptional()
-  @IsNumber()
-  materialCost?: number | null;
 
   @IsOptional()
   @IsNumber()

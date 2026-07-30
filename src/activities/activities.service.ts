@@ -4,7 +4,6 @@ import { PrismaService } from '../prisma/prisma.service';
 import { buildPageMeta } from '../common/pagination.util';
 import {
   ActivityChargeDto,
-  ActivityRequirementOptionDto,
   CreateActivityDto,
   UpdateActivityDto,
 } from './dto';
@@ -16,21 +15,6 @@ export interface ListActivitiesParams {
   wiringType?: string;
   segment?: string;
   scope?: 'global' | 'local' | 'all';
-}
-
-/** Builds the nested `options: { create: [...] }` clause for a requirement, or omits it
- *  entirely for the common "simple, single-make" case. If the caller didn't mark any option
- *  as default, the first one wins. */
-function buildOptionsCreate(options: ActivityRequirementOptionDto[] | undefined) {
-  if (!options || options.length === 0) return undefined;
-  const hasDefault = options.some((o) => o.isDefault);
-  return {
-    create: options.map((o, i) => ({
-      productId: o.productModelId,
-      isDefault: hasDefault ? Boolean(o.isDefault) : i === 0,
-      sortOrder: i,
-    })),
-  };
 }
 
 function buildChargesCreate(charges: ActivityChargeDto[] | undefined) {
@@ -48,16 +32,7 @@ const ACTIVITY_INCLUDE = {
   requirements: {
     include: {
       category: true,
-      options: {
-        orderBy: { sortOrder: 'asc' },
-        include: {
-          product: {
-            include: {
-              manufacturer: true,
-            },
-          },
-        },
-      },
+      subCategory: true,
     },
   },
   charges: {
@@ -142,19 +117,17 @@ export class ActivitiesService {
         segment: (dto.segment ?? null) as never,
         unit: (dto.unit || (dto.wiringType === 'POINT_WIRING' ? 'POINT' : 'CIRCUIT')) as never,
         description: dto.description ?? null,
-        materialCost: dto.materialCost ?? null,
         labourCost: dto.labourCost ?? null,
         tenantId,
         requirements: {
           create: dto.requirements.map((r, i) => ({
             categoryId: r.categoryId,
+            subCategoryId: r.subCategoryId ?? null,
             description: r.description,
             unit: (r.unit?.toUpperCase() || 'NOS') as never,
             quantity: r.quantity,
-            discountPercent: r.discountPercent ?? undefined,
-            taxPercent: r.taxPercent ?? undefined,
+            requiredAttributes: r.requiredAttributes ?? {},
             sortOrder: r.sortOrder ?? i,
-            options: buildOptionsCreate(r.options),
           })),
         },
         charges: buildChargesCreate(dto.charges),
@@ -179,13 +152,12 @@ export class ActivitiesService {
             data: {
               activityId: id,
               categoryId: r.categoryId,
+              subCategoryId: r.subCategoryId ?? null,
               description: r.description,
               unit: (r.unit?.toUpperCase() || 'NOS') as never,
               quantity: r.quantity,
-              discountPercent: r.discountPercent ?? undefined,
-              taxPercent: r.taxPercent ?? undefined,
+              requiredAttributes: r.requiredAttributes ?? {},
               sortOrder: r.sortOrder ?? i,
-              options: buildOptionsCreate(r.options),
             },
           });
         }
@@ -210,12 +182,11 @@ export class ActivitiesService {
         data: {
           name: dto.name ?? undefined,
           wiringType: (dto.wiringType as never) ?? undefined,
-          category: dto.category !== undefined ? dto.category : undefined,
-          segment: dto.segment !== undefined ? (dto.segment as never) : undefined,
+          category: dto.category ?? undefined,
+          segment: (dto.segment as never) ?? undefined,
           unit: (dto.unit as never) ?? undefined,
-          description: dto.description !== undefined ? dto.description : undefined,
-          materialCost: dto.materialCost !== undefined ? dto.materialCost : undefined,
-          labourCost: dto.labourCost !== undefined ? dto.labourCost : undefined,
+          description: dto.description ?? undefined,
+          labourCost: dto.labourCost ?? undefined,
         },
         include: ACTIVITY_INCLUDE,
       });
@@ -261,28 +232,17 @@ export class ActivitiesService {
         segment: source.segment,
         unit: source.unit,
         description: source.description,
-        materialCost: source.materialCost,
         labourCost: source.labourCost,
         tenantId,
         requirements: {
           create: source.requirements.map((r) => ({
             categoryId: r.categoryId,
+            subCategoryId: r.subCategoryId,
+            requiredAttributes: r.requiredAttributes ?? undefined,
             description: r.description,
             unit: r.unit,
             quantity: r.quantity,
-            discountPercent: r.discountPercent,
-            taxPercent: r.taxPercent,
             sortOrder: r.sortOrder,
-            options:
-              r.options.length > 0
-                ? {
-                    create: r.options.map((o) => ({
-                      productId: o.productId,
-                      isDefault: o.isDefault,
-                      sortOrder: o.sortOrder,
-                    })),
-                  }
-                : undefined,
           })),
         },
         charges: {

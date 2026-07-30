@@ -3,7 +3,6 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 async function main() {
-  await prisma.activityRequirementOption.deleteMany({});
   await prisma.activityRequirement.deleteMany({});
   await prisma.activity.deleteMany({});
   await prisma.productModel.deleteMany({});

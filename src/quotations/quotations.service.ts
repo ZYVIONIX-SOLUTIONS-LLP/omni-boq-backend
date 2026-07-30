@@ -277,7 +277,7 @@ export class QuotationsService {
     const [activities, products] = await Promise.all([
       this.prisma.activity.findMany({
         where: { OR: [{ tenantId: null }, { tenantId }] },
-        include: { requirements: { include: { options: true } } }
+        include: { requirements: true }
       }),
       this.prisma.productModel.findMany({
         where: { OR: [{ tenantId: null }, { tenantId }] },
