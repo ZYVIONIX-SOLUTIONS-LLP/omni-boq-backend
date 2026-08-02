@@ -60,6 +60,10 @@ export class QuotationItemDto {
   @IsOptional()
   @IsNumber()
   taxRate?: number;
+
+  @IsOptional()
+  @IsObject()
+  snapshotData?: Record<string, unknown> | null;
 }
 
 export class UpdateQuotationStatusDto {

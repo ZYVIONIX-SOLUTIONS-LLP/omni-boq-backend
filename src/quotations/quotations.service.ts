@@ -110,6 +110,7 @@ export class QuotationsService {
             taxRate: it.taxRate ?? 0,
             amount: lineAmount(it),
             sortOrder: i,
+            snapshotData: it.snapshotData !== undefined ? (it.snapshotData as Prisma.InputJsonValue) : undefined,
           })),
         });
       }
@@ -195,6 +196,7 @@ export class QuotationsService {
           taxRate: dto.taxRate ?? 0,
           amount: lineAmount(dto),
           sortOrder: quotation.items.length,
+          snapshotData: dto.snapshotData !== undefined ? (dto.snapshotData as Prisma.InputJsonValue) : undefined,
         },
       });
       return this.recompute(tx, quotationId);
@@ -226,6 +228,7 @@ export class QuotationsService {
           profitPct: dto.profitPct ?? undefined,
           taxRate: dto.taxRate ?? undefined,
           amount: lineAmount(merged),
+          snapshotData: dto.snapshotData !== undefined ? (dto.snapshotData as Prisma.InputJsonValue) : undefined,
         },
       });
       return this.recompute(tx, quotationId);
