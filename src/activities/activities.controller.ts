@@ -1,12 +1,41 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards, Req, ForbiddenException } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { ActivitiesService } from './activities.service';
-import { CreateActivityDto, DuplicateActivityDto, UpdateActivityDto } from './dto';
+import { CreateActivityDto, DuplicateActivityDto, UpdateActivityDto, CreateActivityTypeDto, CreateActivityCategoryDto } from './dto';
 
 @Controller('activities')
 @UseGuards(JwtAuthGuard)
 export class ActivitiesController {
   constructor(private readonly service: ActivitiesService) {}
+
+  // ── Types and Categories ─────────────────────────────────────────────────
+
+  @Get('types')
+  getTypes(@Req() req: any) {
+    return this.service.getTypes(req.user);
+  }
+
+  @Post('types')
+  createType(@Req() req: any, @Body() dto: CreateActivityTypeDto) {
+    return this.service.createType(dto.name, req.user);
+  }
+
+  @Delete('types/:id')
+  removeType(@Req() req: any, @Param('id') id: string) {
+    return this.service.removeType(id, req.user);
+  }
+
+  @Post('types/:id/categories')
+  createCategory(@Req() req: any, @Param('id') id: string, @Body() dto: CreateActivityCategoryDto) {
+    return this.service.createCategory(id, dto.name, req.user);
+  }
+
+  @Delete('categories/:id')
+  removeCategory(@Req() req: any, @Param('id') id: string) {
+    return this.service.removeCategory(id, req.user);
+  }
+
+  // ── Activities ───────────────────────────────────────────────────────────
 
   @Get()
   list(

@@ -9,7 +9,6 @@ import {
   ValidateNested,
 } from 'class-validator';
 
-const WIRING_TYPES = ['POINT_WIRING', 'CIRCUIT_WIRING'] as const;
 const SEGMENTS = ['RESIDENTIAL', 'COMMERCIAL', 'INDUSTRIAL'] as const;
 
 export class ActivityRequirementDto {
@@ -62,8 +61,8 @@ export class CreateActivityDto {
   @IsString()
   name!: string;
 
-  @IsIn(WIRING_TYPES)
-  wiringType!: (typeof WIRING_TYPES)[number];
+  @IsString()
+  wiringType!: string;
 
   @IsOptional()
   @IsString()
@@ -103,8 +102,8 @@ export class UpdateActivityDto {
   name?: string;
 
   @IsOptional()
-  @IsIn(WIRING_TYPES)
-  wiringType?: (typeof WIRING_TYPES)[number];
+  @IsString()
+  wiringType?: string;
 
   @IsOptional()
   @IsString()
@@ -140,6 +139,16 @@ export class UpdateActivityDto {
 }
 
 export class DuplicateActivityDto {
+  @IsString()
+  name!: string;
+}
+
+export class CreateActivityTypeDto {
+  @IsString()
+  name!: string;
+}
+
+export class CreateActivityCategoryDto {
   @IsString()
   name!: string;
 }

@@ -44,6 +44,97 @@ const ACTIVITY_INCLUDE = {
 export class ActivitiesService {
   constructor(private readonly prisma: PrismaService) {}
 
+  // ── Types and Categories ─────────────────────────────────────────────────
+
+  async getTypes(user?: any) {
+    const where: Prisma.ActivityTypeWhereInput = {};
+    if (user?.role === 'SUPERADMIN') {
+      where.tenantId = null;
+    } else if (user) {
+      const tId = user.adminId || user.id;
+      where.OR = [
+        { tenantId: null },
+        { tenantId: tId },
+      ];
+    }
+    return this.prisma.activityType.findMany({
+      where,
+      include: {
+        categories: {
+          orderBy: { name: 'asc' },
+        },
+      },
+      orderBy: { name: 'asc' },
+    });
+  }
+
+  async createType(name: string, user?: any) {
+    let tenantId = null;
+    if (user && user.role !== 'SUPERADMIN') {
+      tenantId = user.adminId || user.id;
+    }
+    const nameNormalized = name.toLowerCase().replace(/[^a-z0-9]/g, '');
+    return this.prisma.activityType.create({
+      data: {
+        name,
+        nameNormalized,
+        tenantId,
+      },
+    });
+  }
+
+  async removeType(id: string, user?: any) {
+    const existing = await this.prisma.activityType.findUnique({ where: { id } });
+    if (!existing) throw new NotFoundException('Type not found');
+    if (user && user.role !== 'SUPERADMIN') {
+      if (existing.tenantId !== (user.adminId || user.id)) {
+        throw new ConflictException('You cannot delete a global or foreign type');
+      }
+    }
+    
+    const inUse = await this.prisma.activity.findFirst({ where: { wiringType: existing.name }});
+    if (inUse) throw new ConflictException(`Cannot delete: Type is used by activity ${inUse.code}`);
+    
+    await this.prisma.activityType.delete({ where: { id } });
+  }
+
+  async createCategory(typeId: string, name: string, user?: any) {
+    const type = await this.prisma.activityType.findUnique({ where: { id: typeId } });
+    if (!type) throw new NotFoundException('Type not found');
+    
+    let tenantId = null;
+    if (user && user.role !== 'SUPERADMIN') {
+      tenantId = user.adminId || user.id;
+    }
+    
+    const nameNormalized = name.toLowerCase().replace(/[^a-z0-9]/g, '');
+    return this.prisma.activityCategory.create({
+      data: {
+        name,
+        nameNormalized,
+        tenantId,
+        typeId,
+      },
+    });
+  }
+
+  async removeCategory(id: string, user?: any) {
+    const existing = await this.prisma.activityCategory.findUnique({ where: { id } });
+    if (!existing) throw new NotFoundException('Category not found');
+    if (user && user.role !== 'SUPERADMIN') {
+      if (existing.tenantId !== (user.adminId || user.id)) {
+        throw new ConflictException('You cannot delete a global or foreign category');
+      }
+    }
+    
+    const inUse = await this.prisma.activity.findFirst({ where: { category: existing.name }});
+    if (inUse) throw new ConflictException(`Cannot delete: Category is used by activity ${inUse.code}`);
+    
+    await this.prisma.activityCategory.delete({ where: { id } });
+  }
+
+  // ── Activities ───────────────────────────────────────────────────────────
+
   async list(params: ListActivitiesParams, user?: any) {
     const page = params.page && params.page > 0 ? params.page : 1;
     const limit = params.limit && params.limit > 0 ? Math.min(params.limit, 5000) : 20;
