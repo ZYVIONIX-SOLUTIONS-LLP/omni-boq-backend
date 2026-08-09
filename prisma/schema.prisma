@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model Manufacturer {
@@ -239,6 +240,7 @@ model QuotationItem {
 model User {
   id            String         @id @default(cuid())
   username      String         @unique
+  email         String?
   role          UserRole?
   adminId       String?
   companyName   String?

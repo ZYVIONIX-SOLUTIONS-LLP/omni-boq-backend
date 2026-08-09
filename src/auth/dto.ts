@@ -30,6 +30,10 @@ export class RegisterDto {
   @IsOptional()
   @IsString()
   companyName?: string;
+
+  @IsOptional()
+  @IsString()
+  email?: string;
 }
 
 export class RefreshDto {
