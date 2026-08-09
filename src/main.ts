@@ -7,24 +7,45 @@ import { TransformDecimalsInterceptor } from './common/interceptors/transform-de
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-const allowedOrigins = [
-  'http://localhost:3000',
-  'http://200.141.6.187:3000',
-];
+  const allowedOrigins = [
+    'http://localhost:3000',
+    'http://200.141.6.187:3000',
+  ];
 
-app.enableCors({
-  origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
-});
-  app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
+  app.enableCors({
+    origin: (origin, callback) => {
+      console.log('Request Origin:', origin);
+
+      // Allow requests without an Origin (Postman, mobile apps, etc.)
+      if (!origin) {
+        return callback(null, true);
+      }
+
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      console.error(`Blocked by CORS: ${origin}`);
+      return callback(new Error(`Origin ${origin} not allowed by CORS`));
+    },
+    credentials: false,
+    methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+  });
+
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      transform: true,
+    }),
+  );
+
   app.useGlobalFilters(new PrismaExceptionFilter());
   app.useGlobalInterceptors(new TransformDecimalsInterceptor());
 
-  await app.listen(process.env.PORT ?? 3001);
+  await app.listen(process.env.PORT || 3001);
+
+  console.log(`🚀 Server running on: http://localhost:${process.env.PORT || 3001}`);
 }
+
 bootstrap();
