@@ -1,4 +1,4 @@
-import { IsIn, IsString, MinLength } from 'class-validator';
+import { IsIn, IsOptional, IsString, MinLength } from 'class-validator';
 
 const ROLES = ['STAFF', 'ADMIN', 'SUPERADMIN'] as const;
 
@@ -18,4 +18,22 @@ export class CreateUserDto {
 
   @IsIn(ROLES)
   role!: (typeof ROLES)[number];
+}
+
+export class UpdateProfileDto {
+  @IsOptional()
+  @IsString()
+  companyName?: string;
+
+  @IsOptional()
+  @IsString()
+  phone?: string;
+
+  @IsOptional()
+  @IsString()
+  gst?: string;
+
+  @IsOptional()
+  @IsString()
+  companyAddress?: string;
 }

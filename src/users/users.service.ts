@@ -1,7 +1,7 @@
 import { ConflictException, Injectable } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../prisma/prisma.service';
-import { CreateUserDto } from './dto';
+import { CreateUserDto, UpdateProfileDto } from './dto';
 
 @Injectable()
 export class UsersService {
@@ -54,6 +54,19 @@ export class UsersService {
     const { passwordHash: _passwordHash, ...safe } = await this.prisma.user.update({
       where: { id },
       data: { status: 'APPROVED' },
+    });
+    return safe;
+  }
+
+  async updateProfile(id: string, dto: UpdateProfileDto) {
+    const { passwordHash: _passwordHash, ...safe } = await this.prisma.user.update({
+      where: { id },
+      data: {
+        companyName: dto.companyName,
+        phone: dto.phone,
+        gst: dto.gst,
+        companyAddress: dto.companyAddress,
+      },
     });
     return safe;
   }

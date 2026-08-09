@@ -3,7 +3,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { UsersService } from './users.service';
-import { CreateUserDto } from './dto';
+import { CreateUserDto, UpdateProfileDto } from './dto';
 
 @Controller('users')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -19,6 +19,11 @@ export class UsersController {
   @Post()
   create(@Body() dto: CreateUserDto, @Req() req: any) {
     return this.service.create(dto, req.user);
+  }
+
+  @Patch('me')
+  updateProfile(@Body() dto: UpdateProfileDto, @Req() req: any) {
+    return this.service.updateProfile(req.user.id, dto);
   }
 
   @Roles('SUPERADMIN')

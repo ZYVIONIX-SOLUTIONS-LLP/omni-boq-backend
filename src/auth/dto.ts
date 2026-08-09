@@ -34,6 +34,10 @@ export class RegisterDto {
   @IsOptional()
   @IsString()
   email?: string;
+
+  @IsOptional()
+  @IsString()
+  phone?: string;
 }
 
 export class RefreshDto {
