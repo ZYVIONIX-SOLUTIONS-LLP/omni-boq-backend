@@ -49,6 +49,17 @@ export class AuthService {
       throw new ForbiddenException('Your account is pending Super Admin approval.');
     }
 
+    let companyName = user.companyName ?? null;
+    let email = user.email ?? null;
+
+    if (user.role === 'STAFF' && user.adminId) {
+      const adminUser = await this.prisma.user.findUnique({ where: { id: user.adminId } });
+      if (adminUser) {
+        companyName = adminUser.companyName ?? null;
+        email = adminUser.email ?? null;
+      }
+    }
+
     const tokens = await this.issueTokens(user.id, user.username, user.role, user.adminId);
     return {
       user: {
@@ -56,8 +67,8 @@ export class AuthService {
         username: user.username,
         firstName: user.firstName,
         lastName: user.lastName,
-        companyName: user.companyName ?? null,
-        email: user.email ?? null,
+        companyName,
+        email,
         roles: [user.role],
       },
       tokens,
