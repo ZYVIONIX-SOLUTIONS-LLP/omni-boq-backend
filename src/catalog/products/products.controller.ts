@@ -18,6 +18,7 @@ export class ProductsController {
     @Query('categoryId') categoryId?: string,
     @Query('seriesId') seriesId?: string,
     @Query('scope') scope?: 'global' | 'local' | 'all',
+    @Query('attributes') attributes?: string,
   ) {
     return this.service.listProducts({
       page: page ? Number(page) : undefined,
@@ -27,6 +28,7 @@ export class ProductsController {
       categoryId,
       seriesId,
       scope,
+      attributes,
     }, req.user);
   }
 
