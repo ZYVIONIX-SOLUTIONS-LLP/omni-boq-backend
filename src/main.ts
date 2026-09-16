@@ -15,6 +15,7 @@ async function bootstrap() {
   const allowedOrigins = [
     'http://localhost:3000',
     'http://200.141.6.187:3000',
+    'https://app.omnielectrics.in'
   ];
 
   app.enableCors({
