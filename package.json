@@ -7,7 +7,7 @@
   "license": "UNLICENSED",
 "scripts": {
   "create-admin": "npx ts-node tools/create-superadmin.ts",
-  "build": "npx prisma generate && npx nest build",
+  "build": "npx prisma generate && echo PRISMA_BUILD_OK && npx nest build && echo NEST_BUILD_OK",
   "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
   "start": "nest start",
   "start:dev": "nest start --watch",
