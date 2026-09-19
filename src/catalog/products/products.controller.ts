@@ -59,11 +59,11 @@ export class ProductsController {
   }
 
   @Delete('all')
-  removeAll(@Req() req: any) {
+  removeAll(@Req() req: any, @Query('categoryId') categoryId?: string) {
     if (req.user?.role !== 'SUPERADMIN') {
       throw new ForbiddenException('Only SuperAdmin can delete all global products');
     }
-    return this.service.deleteAllProducts();
+    return this.service.deleteAllProducts(categoryId);
   }
 
   @Delete(':id')

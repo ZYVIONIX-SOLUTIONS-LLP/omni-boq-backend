@@ -266,8 +266,10 @@ export class ProductsService {
     await this.prisma.productModel.delete({ where: { id } });
   }
 
-  async deleteAllProducts() {
-    await this.prisma.productModel.deleteMany({});
+  async deleteAllProducts(categoryId?: string) {
+    await this.prisma.productModel.deleteMany({
+      where: categoryId ? { categoryId } : {},
+    });
   }
 
   async exportProductRows(params: Omit<ListProductsParams, 'page' | 'limit'>, user?: any) {
