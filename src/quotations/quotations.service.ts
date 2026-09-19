@@ -154,7 +154,7 @@ export class QuotationsService {
       }
 
       return this.recompute(tx, id);
-    });
+    }, { maxWait: 15000, timeout: 30000 });
   }
 
   async updateStatus(id: string, status: string, user?: any) {
@@ -200,7 +200,7 @@ export class QuotationsService {
         },
       });
       return this.recompute(tx, quotationId);
-    });
+    }, { maxWait: 15000, timeout: 30000 });
   }
 
   async updateItem(quotationId: string, itemId: string, dto: Partial<QuotationItemDto>, user?: any) {
@@ -232,7 +232,7 @@ export class QuotationsService {
         },
       });
       return this.recompute(tx, quotationId);
-    });
+    }, { maxWait: 15000, timeout: 30000 });
   }
 
   async removeItem(quotationId: string, itemId: string, user?: any) {
@@ -245,7 +245,7 @@ export class QuotationsService {
     return this.prisma.$transaction(async (tx) => {
       await tx.quotationItem.delete({ where: { id: itemId } });
       return this.recompute(tx, quotationId);
-    });
+    }, { maxWait: 15000, timeout: 30000 });
   }
 
   private async recompute(tx: Prisma.TransactionClient, quotationId: string) {
