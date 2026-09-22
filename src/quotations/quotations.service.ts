@@ -62,7 +62,20 @@ export class QuotationsService {
   }
 
   async createWithClient(dto: CreateQuotationWithClientDto, user?: any) {
-    const quotationCode = await this.nextCode('quotation_code_seq', 'QUO');
+    let quotationCode = await this.nextCode('quotation_code_seq', 'QUO');
+    
+    if (dto.parentQuotationId) {
+      const parent = await this.prisma.quotation.findUnique({ where: { id: dto.parentQuotationId } });
+      if (parent) {
+        const baseCode = parent.code.split('-R')[0];
+        const existingRevisions = await this.prisma.quotation.findMany({
+          where: { code: { startsWith: baseCode + '-R' } }
+        });
+        const nextRev = existingRevisions.length + 1;
+        quotationCode = `${baseCode}-R${nextRev}`;
+      }
+    }
+
     const projectCode = await this.nextCode('project_code_seq', 'PRJ');
 
     return this.prisma.quotation.create({

@@ -348,6 +348,7 @@ enum UnitOfMeasure {
 
 enum QuotationStatus {
   DRAFT
+  FINAL
   SENT
   ACCEPTED
   REJECTED

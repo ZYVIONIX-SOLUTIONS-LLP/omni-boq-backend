@@ -13,6 +13,10 @@ import {
 const QUOTATION_STATUSES = ['DRAFT', 'SENT', 'ACCEPTED', 'REJECTED', 'EXPIRED'] as const;
 
 export class CreateQuotationWithClientDto {
+  @IsOptional()
+  @IsString()
+  parentQuotationId?: string;
+
   @IsString()
   clientName!: string;
 
