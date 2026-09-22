@@ -17,7 +17,8 @@ async function bootstrap() {
     'http://200.141.6.187:3000',
     'http://app.omnielectrics.in',
     'https://app.omnielectrics.in',
-    'http://app.omnielectrics.com'
+    'http://app.omnielectrics.com',
+    'http://187.127.190.219:3000'
   ];
 
   app.enableCors({
