@@ -30,13 +30,16 @@ model CatalogCategory {
   defaultGstRate Decimal?              @db.Decimal(5, 2)
   hsnCode        String?
   isActive       Boolean               @default(true)
-  nameNormalized String                @unique
+  nameNormalized String
+  tenantId       String?
   updatedAt      DateTime              @updatedAt
   requirements   ActivityRequirement[]
   attributeDefs  AttributeDef[]
   products       ProductModel[]
   subCategories  SubCategory[]
 
+  @@unique([tenantId, nameNormalized])
+  @@index([tenantId])
   @@map("catalog_categories")
 }
 

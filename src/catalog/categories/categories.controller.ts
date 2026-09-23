@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Request, Delete, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { ListQueryDto } from '../../common/dto/list-query.dto';
 import { CategoriesService } from './categories.service';
@@ -9,8 +9,9 @@ export class CategoriesController {
   constructor(private readonly service: CategoriesService) {}
 
   @Get()
-  list(@Query() query: ListQueryDto) {
-    return this.service.list(query);
+  @UseGuards(JwtAuthGuard)
+  list(@Query() query: ListQueryDto, @Request() req: any) {
+    return this.service.list(query, req.user);
   }
 
   @Get(':id')
@@ -20,8 +21,12 @@ export class CategoriesController {
 
   @Post()
   @UseGuards(JwtAuthGuard)
-  create(@Body() dto: CreateCategoryDto) {
-    return this.service.create(dto);
+  create(@Body() dto: CreateCategoryDto, @Request() req: any) {
+    const data = { ...dto } as any;
+    if (req.user.role !== "SUPERADMIN") {
+        data.tenantId = req.user.adminId || req.user.id;
+    }
+    return this.service.create(data);
   }
 
   @Patch(':id')

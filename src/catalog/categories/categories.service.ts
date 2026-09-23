@@ -6,6 +6,7 @@ import type { CatalogCategory } from '@prisma/client';
 @Injectable()
 export class CategoriesService extends GenericCrudService<CatalogCategory> {
   protected searchFields = ['hsnCode'];
+  protected scopeFields = ['tenantId'];
 
   constructor(private readonly prisma: PrismaService) {
     super();

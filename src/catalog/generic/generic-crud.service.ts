@@ -6,6 +6,7 @@ export interface GenericListParams {
   limit?: number;
   search?: string;
   includeInactive?: boolean;
+  scope?: "global" | "local" | "all";
   filter?: Record<string, string | undefined>;
 }
 
@@ -22,12 +23,25 @@ export abstract class GenericCrudService<T extends { id: string; name: string; i
   /** Extra fields (besides name) that `search` matches against, case-insensitively */
   protected searchFields: string[] = [];
 
-  async list(params: GenericListParams): Promise<{ items: T[]; meta: PageMeta }> {
+  async list(params: GenericListParams, user?: any): Promise<{ items: T[]; meta: PageMeta }> {
     const page = params.page && params.page > 0 ? params.page : 1;
     const limit = params.limit && params.limit > 0 ? Math.min(params.limit, 5000) : 50;
 
     const where: Record<string, unknown> = {};
     if (!params.includeInactive) where.isActive = true;
+    if (user?.role === "SUPERADMIN") {
+      where.tenantId = null;
+    } else if (user && this.scopeFields.includes("tenantId")) {
+      const tId = user.adminId || user.id;
+      if (params.scope === "global") {
+        where.tenantId = null;
+      } else if (params.scope === "local") {
+        where.tenantId = tId;
+      } else {
+        where.OR = [{ tenantId: null }, { tenantId: tId }];
+      }
+    }
+
 
     if (params.filter) {
       for (const [key, value] of Object.entries(params.filter)) {
