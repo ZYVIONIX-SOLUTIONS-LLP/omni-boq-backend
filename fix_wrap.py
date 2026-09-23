@@ -1,0 +1,32 @@
+
+import re
+
+# 1. Fix app/(app)/Materials/page.tsx
+with open(r"c:\Users\pvish\Zyvionix\Omni Projects\omni-boq-frontend\app\(app)\Materials\page.tsx", "r", encoding="utf-8") as f:
+    content1 = f.read()
+
+# The specific TableCell containing the product name
+old_cell1 = """<TableCell className="whitespace-nowrap border-r border-purple-100/80 py-2.5">
+                      <p className="text-sm font-semibold text-slate-900">{p.name || p.modelCode || "-"}"""
+new_cell1 = """<TableCell className="min-w-[300px] max-w-[600px] whitespace-normal break-words border-r border-purple-100/80 py-2.5">
+                      <p className="text-sm font-semibold text-slate-900 leading-snug">{p.name || p.modelCode || "-"}"""
+
+content1 = content1.replace(old_cell1, new_cell1)
+
+with open(r"c:\Users\pvish\Zyvionix\Omni Projects\omni-boq-frontend\app\(app)\Materials\page.tsx", "w", encoding="utf-8") as f:
+    f.write(content1)
+
+# 2. Fix app/superadmin/Materials/page.tsx
+with open(r"c:\Users\pvish\Zyvionix\Omni Projects\omni-boq-frontend\app\superadmin\Materials\page.tsx", "r", encoding="utf-8") as f:
+    content2 = f.read()
+
+old_cell2 = """<TableCell className="whitespace-nowrap">
+                      <p className="text-sm font-semibold">{p.name || p.modelCode || "-"}"""
+new_cell2 = """<TableCell className="min-w-[300px] max-w-[600px] whitespace-normal break-words">
+                      <p className="text-sm font-semibold leading-snug">{p.name || p.modelCode || "-"}"""
+
+content2 = content2.replace(old_cell2, new_cell2)
+
+with open(r"c:\Users\pvish\Zyvionix\Omni Projects\omni-boq-frontend\app\superadmin\Materials\page.tsx", "w", encoding="utf-8") as f:
+    f.write(content2)
+

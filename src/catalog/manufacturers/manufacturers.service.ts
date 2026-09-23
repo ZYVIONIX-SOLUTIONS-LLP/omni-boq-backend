@@ -6,6 +6,7 @@ import type { Manufacturer } from '@prisma/client';
 @Injectable()
 export class ManufacturersService extends GenericCrudService<Manufacturer> {
   protected searchFields = ['country', 'code'];
+  protected scopeFields = ['tenantId'];
 
   constructor(private readonly prisma: PrismaService) {
     super();

@@ -15,10 +15,13 @@ model Manufacturer {
   description    String?
   createdAt      DateTime       @default(now())
   isActive       Boolean        @default(true)
-  nameNormalized String         @unique
+  nameNormalized String
+  tenantId       String?
   updatedAt      DateTime       @updatedAt
   products       ProductModel[]
 
+  @@unique([tenantId, nameNormalized])
+  @@index([tenantId])
   @@map("manufacturers")
 }
 
