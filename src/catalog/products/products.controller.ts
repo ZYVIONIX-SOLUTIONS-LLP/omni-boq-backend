@@ -17,7 +17,6 @@ export class ProductsController {
     @Query('manufacturerId') manufacturerId?: string,
     @Query('categoryId') categoryId?: string,
     @Query('seriesId') seriesId?: string,
-    @Query('scope') scope?: 'global' | 'local' | 'all',
     @Query('attributes') attributes?: string,
   ) {
     return this.service.listProducts({
@@ -27,7 +26,6 @@ export class ProductsController {
       manufacturerId,
       categoryId,
       seriesId,
-      scope,
       attributes,
     }, req.user);
   }
@@ -57,8 +55,7 @@ export class ProductsController {
   update(@Req() req: any, @Param('id') id: string, @Body() dto: SaveProductDto) {
     return this.service.saveProduct(dto, id, req.user);
   }
-return this.service.deleteAllProducts(categoryId);
-  }
+
 
   @Delete(':id')
   remove(@Req() req: any, @Param('id') id: string) {
