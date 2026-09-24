@@ -57,13 +57,7 @@ export class ProductsController {
   update(@Req() req: any, @Param('id') id: string, @Body() dto: SaveProductDto) {
     return this.service.saveProduct(dto, id, req.user);
   }
-
-  @Delete('all')
-  removeAll(@Req() req: any, @Query('categoryId') categoryId?: string) {
-    if (req.user?.role !== 'SUPERADMIN') {
-      throw new ForbiddenException('Only SuperAdmin can delete all global products');
-    }
-    return this.service.deleteAllProducts(categoryId);
+return this.service.deleteAllProducts(categoryId);
   }
 
   @Delete(':id')

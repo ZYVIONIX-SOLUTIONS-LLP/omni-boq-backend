@@ -23,8 +23,4 @@ export class ListQueryDto {
   @Transform(({ value }) => value === 'true' || value === true)
   @IsBoolean()
   includeInactive?: boolean = false;
-
-  @IsOptional()
-  @IsString()
-  scope?: 'global' | 'local' | 'all';
 }

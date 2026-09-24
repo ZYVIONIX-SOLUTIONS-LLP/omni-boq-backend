@@ -1,55 +1,41 @@
-
+﻿import os
 import re
 
-with open(r"c:\Users\pvish\Zyvionix\Omni Projects\omni-boq-frontend\app\(app)\Materials\categories\page.tsx", "r", encoding="utf-8") as f:
-    c = f.read()
+files = [
+    r"c:\Users\pvish\Zyvionix\Omni Projects\omni-boq-frontend\app\(app)\Materials\page.tsx",
+    r"c:\Users\pvish\Zyvionix\Omni Projects\omni-boq-frontend\app\(app)\Materials\categories\page.tsx",
+    r"c:\Users\pvish\Zyvionix\Omni Projects\omni-boq-frontend\app\(app)\Materials\manufacturers\page.tsx",
+    r"c:\Users\pvish\Zyvionix\Omni Projects\omni-boq-frontend\app\(app)\Activities\page.tsx"
+]
 
-# Force scope to be just a constant or remove it and use scope: "local"
-c = c.replace("const [scope, setScope] = useState<\"local\" | \"global\">(\"local\");", "const scope = \"local\";")
-c = c.replace("categoriesApi.list({ search: search || undefined, limit: 500, scope } as any)", "categoriesApi.list({ search: search || undefined, limit: 500, scope: \"local\" } as any)")
-c = c.replace("}, [search, scope]);", "}, [search]);")
+for path in files:
+    if not os.path.exists(path): continue
+    with open(path, "r", encoding="utf-8") as f:
+        c = f.read()
 
-# Remove tabs UI
-old_ui = """      <Tabs value={scope} onValueChange={(val) => setScope(val as any)} className="w-full">
-        <div className="flex flex-col sm:flex-row justify-between gap-4 items-start sm:items-center mb-4">
-          <TabsList className="bg-white/50 border border-slate-200 p-1">
-            <TabsTrigger value="local" className="data-[state=active]:bg-purple-100 data-[state=active]:text-purple-900">
-              My Categories
-            </TabsTrigger>
-            <TabsTrigger value="global" className="data-[state=active]:bg-slate-200 data-[state=active]:text-slate-900">
-              Global Categories
-            </TabsTrigger>
-          </TabsList>
-        </div>
-        
-        <TabsContent value={scope} className="m-0 space-y-5">
-      
-      <div className="flex flex-wrap items-center justify-between gap-3">"""
+    # Remove scope state
+    c = re.sub(r"const \[scope, setScope\] = useState<\"local\" \| \"global\">.*?;", "", c)
+    c = re.sub(r"const \[scope, setScope\] = useState<any>\(.*?;", "", c)
+    
+    # Remove scope from API calls
+    c = re.sub(r"scope: \"local\",?", "", c)
+    c = re.sub(r"scope: scope,", "", c)
+    c = re.sub(r"scope,", "", c)
+    
+    # Remove Tabs from UI
+    # In some pages, Tabs are wrapping the whole thing.
+    # Actually, in Materials page:
+    # <Tabs value={scope} onValueChange={(val) => { setScope(val as any); setPage(1); }}>
+    #   <TabsList ...> ... </TabsList>
+    # </Tabs>
+    # Let's just remove the entire Tabs block
+    c = re.sub(r"<Tabs value=\{scope\}.*?</Tabs>", "", c, flags=re.DOTALL)
+    
+    # Wait, in Materials/page.tsx, it might just be the TabsList and we should keep the title.
+    # I'll just use a regex to match the Tabs component.
+    c = re.sub(r"<Tabs value=\{scope\}.*?<TabsList.*?</TabsList>\s*</Tabs>", "", c, flags=re.DOTALL)
 
-new_ui = """      <div className="flex flex-wrap items-center justify-between gap-3">"""
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(c)
 
-c = c.replace(old_ui, new_ui)
-
-old_end = """        />
-      )}
-        </TabsContent>
-      </Tabs>
-    </div>
-  );"""
-
-new_end = """        />
-      )}
-    </div>
-  );"""
-
-c = c.replace(old_end, new_end)
-
-# Remove all disabled={scope === "global"} since it is always local
-c = c.replace("disabled={scope === \"global\"}\n              ", "")
-c = c.replace("disabled={scope === \"global\"}\n                  ", "")
-c = c.replace("disabled={scope === \"global\"}\n                    ", "")
-c = c.replace("disabled={scope === \"global\"}\n                          ", "")
-
-with open(r"c:\Users\pvish\Zyvionix\Omni Projects\omni-boq-frontend\app\(app)\Materials\categories\page.tsx", "w", encoding="utf-8") as f:
-    f.write(c)
-
+print("Pages updated!")

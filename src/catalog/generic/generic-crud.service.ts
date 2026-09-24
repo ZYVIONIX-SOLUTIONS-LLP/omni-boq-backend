@@ -29,17 +29,11 @@ export abstract class GenericCrudService<T extends { id: string; name: string; i
 
     const where: Record<string, unknown> = {};
     if (!params.includeInactive) where.isActive = true;
-    if (user?.role === "SUPERADMIN") {
-      where.tenantId = null;
+    if (user && user.role === "SUPERADMIN") {
+      // Superadmin has no tenant access in catalog anymore
+      where.tenantId = "SUPERADMIN_NO_ACCESS";
     } else if (user && this.scopeFields.includes("tenantId")) {
-      const tId = user.adminId || user.id;
-      if (params.scope === "global") {
-        where.tenantId = null;
-      } else if (params.scope === "local") {
-        where.tenantId = tId;
-      } else {
-        where.OR = [{ tenantId: null }, { tenantId: tId }];
-      }
+      where.tenantId = user.adminId || user.id;
     }
 
 

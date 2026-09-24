@@ -1,3 +1,5 @@
+
+import { SuperadminUsersModule } from './superadmin/users/users.module';
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { AppController } from './app.controller';
@@ -18,7 +20,7 @@ import { QuotationsModule } from './quotations/quotations.module';
     CatalogModule,
     ActivitiesModule,
     QuotationsModule,
-  ],
+    SuperadminUsersModule],
   controllers: [AppController],
   providers: [AppService],
 })

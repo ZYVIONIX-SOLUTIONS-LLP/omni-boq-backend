@@ -11,7 +11,6 @@ export interface ListProductsParams {
   manufacturerId?: string;
   categoryId?: string;
   seriesId?: string;
-  scope?: 'global' | 'local' | 'all';
   attributes?: string;
 }
 
@@ -34,20 +33,10 @@ export class ProductsService {
     if (params.categoryId) where.categoryId = params.categoryId;
     if (params.seriesId) where.series = params.seriesId;
 
-    if (user?.role === 'SUPERADMIN') {
-      where.tenantId = null;
+    if (user && user.role === "SUPERADMIN") {
+      where.tenantId = "SUPERADMIN_NO_ACCESS";
     } else if (user) {
-      const tId = user.adminId || user.id;
-      if (params.scope === 'global') {
-        where.tenantId = null;
-      } else if (params.scope === 'local') {
-        where.tenantId = tId;
-      } else {
-        where.OR = [
-          { tenantId: null },
-          { tenantId: tId },
-        ];
-      }
+      where.tenantId = user.adminId || user.id;
     }
 
     if (params.search) {
@@ -212,10 +201,10 @@ export class ProductsService {
       throw new ConflictException('Category is required (pick one or type a name)');
     }
 
-    if (id && user && user.role !== 'SUPERADMIN') {
+    if (id && user) {
       const existing = await this.prisma.productModel.findUnique({ where: { id } });
       if (!existing || existing.tenantId !== (user.adminId || user.id)) {
-        throw new ConflictException('You cannot edit a global or foreign product');
+        throw new ConflictException('You cannot edit a foreign product');
       }
     }
 

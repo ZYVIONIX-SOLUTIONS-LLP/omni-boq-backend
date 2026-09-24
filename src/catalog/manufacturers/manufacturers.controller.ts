@@ -23,9 +23,7 @@ export class ManufacturersController {
   @UseGuards(JwtAuthGuard)
   create(@Body() dto: CreateManufacturerDto, @Request() req: any) {
     const data = { ...dto } as any;
-    if (req.user.role !== "SUPERADMIN") {
-        data.tenantId = req.user.adminId || req.user.id;
-    }
+    data.tenantId = req.user.adminId || req.user.id;
     return this.service.create(data);
   }
 
