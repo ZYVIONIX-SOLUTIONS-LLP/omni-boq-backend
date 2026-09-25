@@ -18,6 +18,17 @@ export class CreateUserDto {
 
   @IsIn(ROLES)
   role!: (typeof ROLES)[number];
+
+  @IsOptional()
+  @IsString()
+  email?: string;
+
+  @IsOptional()
+  @IsString()
+  phone?: string;
+
+  @IsOptional()
+  priorityLevel?: number;
 }
 
 export class UpdateProfileDto {
@@ -31,9 +42,16 @@ export class UpdateProfileDto {
 
   @IsOptional()
   @IsString()
+  email?: string;
+
+  @IsOptional()
+  @IsString()
   gst?: string;
 
   @IsOptional()
   @IsString()
   companyAddress?: string;
+
+  @IsOptional()
+  companyCustomFields?: any;
 }

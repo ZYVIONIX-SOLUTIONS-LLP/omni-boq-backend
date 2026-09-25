@@ -54,6 +54,7 @@ export class AuthService {
     let phone = user.phone ?? null;
     let gst = user.gst ?? null;
     let companyAddress = user.companyAddress ?? null;
+    let companyCustomFields = user.companyCustomFields ?? null;
 
     if (user.role === 'STAFF' && user.adminId) {
       const adminUser = await this.prisma.user.findUnique({ where: { id: user.adminId } });
@@ -63,6 +64,7 @@ export class AuthService {
         phone = adminUser.phone ?? null;
         gst = adminUser.gst ?? null;
         companyAddress = adminUser.companyAddress ?? null;
+        companyCustomFields = adminUser.companyCustomFields ?? null;
       }
     }
 
@@ -78,7 +80,9 @@ export class AuthService {
         phone,
         gst,
         companyAddress,
+        companyCustomFields,
         roles: [user.role],
+        priorityLevel: user.priorityLevel,
       },
       tokens,
     };

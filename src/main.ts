@@ -1,4 +1,6 @@
 import { NestFactory } from '@nestjs/core';
+import { join } from 'path';
+import { NestExpressApplication } from '@nestjs/platform-express';
 import { ValidationPipe } from '@nestjs/common';
 import { json, urlencoded } from 'express';
 import { AppModule } from './app.module';
@@ -6,7 +8,8 @@ import { PrismaExceptionFilter } from './common/filters/prisma-exception.filter'
 import { TransformDecimalsInterceptor } from './common/interceptors/transform-decimals.interceptor';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule, { bodyParser: false });
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, { bodyParser: false });
+  app.useStaticAssets(join(process.cwd(), 'uploads'), { prefix: '/uploads' });
 
   // Increase payload limit for large Excel imports
   app.use(json({ limit: '50mb' }));

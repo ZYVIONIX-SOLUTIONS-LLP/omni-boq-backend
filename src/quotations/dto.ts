@@ -4,6 +4,8 @@ import {
   IsIn,
   IsISO8601,
   IsNumber,
+  Min,
+  Max,
   IsObject,
   IsOptional,
   IsString,
@@ -55,14 +57,19 @@ export class QuotationItemDto {
 
   @IsOptional()
   @IsNumber()
+  @Min(0)
+  @Max(100)
   discountPct?: number;
 
   @IsOptional()
   @IsNumber()
+  @Min(0)
+  @Max(100)
   profitPct?: number;
 
   @IsOptional()
   @IsNumber()
+  @IsIn([0, 5, 12, 18, 28, 3, 0.25])
   taxRate?: number;
 
   @IsOptional()

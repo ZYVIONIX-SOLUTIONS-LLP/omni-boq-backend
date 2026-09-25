@@ -43,6 +43,9 @@ export class UsersService {
         lastName: dto.lastName,
         role: dto.role,
         adminId,
+        email: dto.email,
+        phone: dto.phone,
+        priorityLevel: dto.priorityLevel,
       },
     });
 
@@ -64,8 +67,10 @@ export class UsersService {
       data: {
         companyName: dto.companyName,
         phone: dto.phone,
+          email: dto.email,
         gst: dto.gst,
         companyAddress: dto.companyAddress,
+        companyCustomFields: dto.companyCustomFields,
       },
     });
     return safe;

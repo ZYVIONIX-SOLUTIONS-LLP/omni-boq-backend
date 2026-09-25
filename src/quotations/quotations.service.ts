@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { buildPageMeta } from '../common/pagination.util';
 import { CreateQuotationWithClientDto, QuotationItemDto, UpdateQuotationDto } from './dto';
+import { NotificationsService } from '../notifications/notifications.service';
 
 const QUOTATION_INCLUDE = {
   customer: true,
@@ -20,7 +21,10 @@ function lineAmount(item: { rate: number; quantity: number; discountPct?: number
 
 @Injectable()
 export class QuotationsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notificationsService: NotificationsService
+  ) {}
 
   /** Non-SUPERADMIN users only ever see/touch quotations belonging to their own
    *  tenant (an ADMIN and their STAFF share one tenant id). Throws NotFoundException
@@ -78,7 +82,7 @@ export class QuotationsService {
 
     const projectCode = await this.nextCode('project_code_seq', 'PRJ');
 
-    return this.prisma.quotation.create({
+    const quotation = await this.prisma.quotation.create({
       data: {
         code: quotationCode,
         status: 'DRAFT',
@@ -101,6 +105,16 @@ export class QuotationsService {
       },
       include: QUOTATION_INCLUDE,
     });
+
+    if (user && user.role === 'STAFF' && user.adminId) {
+      await this.notificationsService.create(
+        user.adminId,
+        'New Quotation Created',
+        `Staff member ${user.firstName || user.username} has created a new quotation (${quotation.code}).`
+      );
+    }
+
+    return quotation;
   }
 
   async update(id: string, dto: UpdateQuotationDto, user?: any) {

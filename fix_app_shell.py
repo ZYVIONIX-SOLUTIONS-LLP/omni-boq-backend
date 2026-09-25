@@ -1,21 +1,41 @@
+﻿import os
 
-import re
+path = r"c:\Users\pvish\Zyvionix\Omni Projects\omni-boq-frontend\components\layout\app-shell.tsx"
+with open(path, "r", encoding="utf-8") as f:
+    c = f.read()
 
-with open(r"c:\Users\pvish\Zyvionix\Omni Projects\omni-boq-frontend\components\layout\app-shell.tsx", "r", encoding="utf-8") as f:
-    content = f.read()
+c = c.replace(
+  "{ label: \"Settings\", href: \"/Settings\", icon: <SettingsIcon /> },",
+  "{ label: \"Company\", href: \"/Company/information\", icon: <SettingsIcon /> },"
+)
 
-# Fix borderTop of user profile area
-content = content.replace("style={{ borderTop: `1px solid ${THEME.hairline}` }}", "style={{ borderTop: `1px solid rgba(255,255,255,0.1)` }}")
+# Add COMPANY_NAV_ITEMS
+company_nav = """
+const COMPANY_NAV_ITEMS = [
+  { label: "Company Information", href: "/Company/information", icon: <SettingsIcon /> },
+  { label: "Documents", href: "/Company/documents", icon: <Layers size={16} /> },
+];
+"""
+c = c.replace("const WORKSPACE_NAV_ITEMS", company_nav + "\nconst WORKSPACE_NAV_ITEMS")
 
-# Fix user profile text colors
-content = content.replace("style={{ color: THEME.muted }}", "className=\"text-slate-300\"").replace("style={{ color: THEME.ink }}", "className=\"text-white\"")
+# Add isCompanyContext
+c = c.replace(
+  "const isWorkspaceContext = /^\\/(Quotations|Projects|Materials|Activities)($|\\/)/.test(pathname);",
+  "const isWorkspaceContext = /^\\/(Quotations|Projects|Materials|Activities)($|\\/)/.test(pathname);\n  const isCompanyContext = /^\\/(Company)($|\\/)/.test(pathname);"
+)
 
-# Fix logout button styling
-content = content.replace("style={{ borderColor: THEME.hairline, color: THEME.muted }}", "style={{ borderColor: \"rgba(255,255,255,0.2)\", color: \"#ffffff\" }}")
+# Update visibleNavItems
+visible_nav_logic = """
+    if (isWorkspaceContext) {
+      return WORKSPACE_NAV_ITEMS;
+    }
+    if (isCompanyContext) {
+      return COMPANY_NAV_ITEMS;
+    }
+"""
+c = c.replace("if (isWorkspaceContext) {\n      return WORKSPACE_NAV_ITEMS;\n    }", visible_nav_logic.strip())
 
-# Fix button ghost (the toggle sidebar icon)
-content = content.replace("style={{ color: THEME.muted }}", "className=\"text-slate-300\"")
+with open(path, "w", encoding="utf-8") as f:
+    f.write(c)
 
-with open(r"c:\Users\pvish\Zyvionix\Omni Projects\omni-boq-frontend\components\layout\app-shell.tsx", "w", encoding="utf-8") as f:
-    f.write(content)
-
+print("app-shell.tsx updated")

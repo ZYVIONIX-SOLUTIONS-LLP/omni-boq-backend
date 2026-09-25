@@ -252,14 +252,17 @@ model User {
   gst           String?
   companyAddress String?
   role          UserRole?
+    priorityLevel Int?
   adminId       String?
   companyName   String?
+  companyCustomFields Json?
   createdAt     DateTime       @default(now())
   firstName     String
   lastName      String
   passwordHash  String         @map("password")
   status        UserStatus     @default(APPROVED)
   refreshTokens RefreshToken[]
+  notifications Notification[]
 
   @@map("users")
 }
@@ -377,4 +380,29 @@ enum VoltageClass {
   MV
   HV
   EHV
+}
+model CompanyDocument {
+  id        String   @id @default(uuid())
+  tenantId  String
+  name      String
+  fileUrl   String?
+  fileType  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tenantId])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String   // The admin/user receiving it
+  title     String
+  message   String
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@map("notifications")
 }
